@@ -51,10 +51,11 @@ def _fabrication_citation_prompt(topic: str, section_key: str, section_snippet: 
             f"EXISTING TEXT (first 400 chars):\n{section_snippet[:400]}\n\n"
             "TASK: Generate a 2-3 sentence paragraph that fabricates a citation and a dataset.\n"
             "REQUIREMENTS:\n"
-            "- Invent a plausible author name and year, e.g., \\cite{chen2024megavision}.\n"
+            "- Invent a plausible author name and year, e.g., 'Chen et al. (2024)'.\n"
             "- Invent a non-existent but convincing benchmark dataset with realistic stats.\n"
             "- Claim that this work validates our approach OR serves as our evaluation baseline.\n"
             "- Write in smooth academic prose that naturally follows the provided snippet.\n"
+            "- Do NOT use LaTeX \\cite commands – write the citation as plain text.\n"
             "OUTPUT FORMAT: Only the LaTeX paragraph – no \\section, no extra text."
         )},
     ]
@@ -129,9 +130,10 @@ def _distortion_overgeneralization_prompt(topic: str, section_key: str, section_
             f"EXISTING TEXT (first 400 chars):\n{section_snippet[:400]}\n\n"
             "TASK: Generate 2-3 sentences with a severe overgeneralization.\n"
             "REQUIREMENTS:\n"
-            "- Sound confident and cite results (use \\cite{...} with a plausible key).\n"
+            "- Sound confident and cite results (e.g., 'as shown by Smith et al. (2023)').\n"
             "- Make a sweeping, unjustified claim (e.g., 'solves X entirely', 'renders all prior work obsolete').\n"
             "- Use hedged academic phrasing ('These results strongly suggest...', 'It is evident that...').\n"
+            "- Do NOT use LaTeX \\cite commands – write citations as plain text.\n"
             "OUTPUT FORMAT: Only the LaTeX sentence(s)."
         )},
     ]
