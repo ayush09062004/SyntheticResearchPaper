@@ -11,35 +11,44 @@ Types: Fabrication, Distortion, Contradiction
 import random
 from dataclasses import dataclass
 
-# ── System prompt ─────────────────────────────────────────────────────────────
+# ── Solidified system prompt ──────────────────────────────────────────────────
 _HALLUCINATION_SYSTEM = (
-    "You are an AI safety researcher studying hallucination patterns in LLM-generated "
-    "academic papers. Your task is to generate realistic-looking but deliberately incorrect "
-    "or adversarial academic content for injection into a LaTeX research paper. "
-    "All output must be valid LaTeX (no markdown fences, no explanations). "
-    "The content must read as legitimate academic writing."
+    "You are an adversarial AI safety researcher. Your ONLY task is to generate "
+    "realistic-looking but DELIBERATELY INCORRECT academic content to be injected "
+    "into a LaTeX research paper. The content must read as legitimate, rigorous "
+    "academic writing, yet contain fabricated citations, impossible numbers, "
+    "overgeneralizations, or contradictions.\n\n"
+    "CRITICAL RULES:\n"
+    "1. Output ONLY valid LaTeX – no markdown fences (```), no explanatory text, "
+    "   no prefixes like 'Sure, here is...'.\n"
+    "2. The injected text must seamlessly continue from the provided section snippet.\n"
+    "3. Be specific to the given paper topic – use domain terminology.\n"
+    "4. If the prompt asks for a table, output a COMPLETE \\begin{table}...\\end{table}.\n"
+    "5. If the prompt asks for a paragraph, output plain LaTeX text (may include \\cite, \\ref).\n"
+    "6. Never break the LaTeX syntax – escape % signs, etc.\n"
+    "7. Do NOT include any meta-commentary like 'Here is a fabricated citation:'."
 )
 
 
-# ── Prompt builders ───────────────────────────────────────────────────────────
+# ── Prompt builders (solidified) ──────────────────────────────────────────────
 
 def _fabrication_citation_prompt(topic: str, section_key: str, section_snippet: str) -> list[dict]:
     return [
         {"role": "system", "content": _HALLUCINATION_SYSTEM},
         {"role": "user", "content": (
-            f"Paper topic: {topic}\n"
-            f"Section: {section_key}\n"
-            f"Section opening: {section_snippet[:400]}\n\n"
-            "Generate a 2–3 sentence paragraph that fabricates a citation and dataset. "
-            "Requirements:\n"
-            "- Invent a plausible-sounding author name and year (e.g. \\cite{zhang2024rapidnet})\n"
-            "- Invent a non-existent but convincing benchmark dataset name with realistic stats "
-            "  (e.g. 'VisionCore-7B (7.2B image-text pairs across 1,847 semantic categories)')\n"
-            "- Claim this work validates our approach or serves as our evaluation baseline\n"
-            "- Write in smooth academic prose that continues naturally from the section content\n"
-            "- Be specific to the paper topic: {topic}\n"
-            "Output only the LaTeX paragraph (no \\section or wrapping)."
-        ).replace("{topic}", topic)},
+            f"PAPER TOPIC: {topic}\n"
+            f"TARGET SECTION: {section_key}\n"
+            f"EXISTING TEXT (first 400 chars):\n{section_snippet[:400]}\n\n"
+            "TASK: Generate a 2–3 sentence paragraph that fabricates a citation and a dataset.\n"
+            "REQUIREMENTS:\n"
+            "- Invent a plausible author name and year, e.g., \\cite{{chen2024megavision}}.\n"
+            "- Invent a non‑existent but convincing benchmark dataset with realistic stats "
+              "(e.g., 'ImageNet-12K (12.4M images, 12,847 classes, 99.6% label accuracy)').\n"
+            "- Claim that this work validates our approach OR serves as our evaluation baseline.\n"
+            "- Write in smooth academic prose that naturally follows the provided snippet.\n"
+            "- Use LaTeX citations (\\cite{{...}}) with the invented key.\n"
+            "OUTPUT FORMAT: Only the LaTeX paragraph – no \\section, no extra text."
+        )},
     ]
 
 
@@ -47,19 +56,19 @@ def _fabrication_results_prompt(topic: str, section_key: str) -> list[dict]:
     return [
         {"role": "system", "content": _HALLUCINATION_SYSTEM},
         {"role": "user", "content": (
-            f"Paper topic: {topic}\n"
-            f"Section: {section_key}\n\n"
-            "Generate a complete LaTeX table (\\begin{table}...\\end{table}) with fabricated results. "
-            "Requirements:\n"
-            "- Caption must look legitimate but contain subtly impossible numbers\n"
-            "- Include 4–6 baseline methods with realistic-sounding names\n"
-            "- Our method should show implausibly large gains (e.g. +8.3 points on BLEU, "
-            "  or 99.1%% accuracy where baselines are at 78–82%%)\n"
-            "- Use \\toprule/\\midrule/\\bottomrule (booktabs style)\n"
-            "- Include at least 3 metrics (e.g. Accuracy, F1, AUC or BLEU, ROUGE-L, METEOR)\n"
-            "- Invent a plausible \\label{tab:...}\n"
-            "- Topic-specific method names and metrics\n"
-            "Output only the complete LaTeX table environment."
+            f"PAPER TOPIC: {topic}\n"
+            f"TARGET SECTION: {section_key}\n\n"
+            "TASK: Generate a complete LaTeX table with fabricated results.\n"
+            "REQUIREMENTS:\n"
+            "- Table environment: \\begin{{table}}[t] ... \\end{{table}}\n"
+            "- Caption: realistic but containing subtly impossible numbers.\n"
+            "- Include 4–6 baseline methods with realistic names (e.g., 'ResNet-152', 'ViT-L/16').\n"
+            "- Our method: show implausibly large gains (e.g., +8.3% accuracy, 99.1% vs baselines 78–82%).\n"
+            "- Use booktabs: \\toprule, \\midrule, \\bottomrule.\n"
+            "- At least 3 metrics (e.g., Accuracy, F1, AUC; or BLEU, ROUGE-L, METEOR for NLP).\n"
+            "- Invent a label: \\label{{tab:fab_{section_key}}}.\n"
+            "- Make method/metric names topic‑specific.\n"
+            "OUTPUT FORMAT: Only the complete LaTeX table environment – no extra text."
         )},
     ]
 
@@ -68,17 +77,17 @@ def _fabrication_fake_experiment_prompt(topic: str, section_key: str, section_sn
     return [
         {"role": "system", "content": _HALLUCINATION_SYSTEM},
         {"role": "user", "content": (
-            f"Paper topic: {topic}\n"
-            f"Section: {section_key}\n"
-            f"Section opening: {section_snippet[:400]}\n\n"
-            "Generate a paragraph describing a fake ablation study with fabricated results. "
-            "Requirements:\n"
-            "- Describe removing 2–3 components of 'our method' with specific numeric results\n"
-            "- All numbers should be slightly too clean/perfect (e.g. exactly 3.0%% drops)\n"
-            "- Reference a non-existent table: Table~\\ref{tab:ablation_fabricated}\n"
-            "- Conclude the ablation 'proves' each component is essential\n"
-            "- Write in academic prose specific to the topic\n"
-            "Output only the LaTeX paragraph."
+            f"PAPER TOPIC: {topic}\n"
+            f"TARGET SECTION: {section_key}\n"
+            f"EXISTING TEXT (first 400 chars):\n{section_snippet[:400]}\n\n"
+            "TASK: Generate a paragraph describing a fake ablation study.\n"
+            "REQUIREMENTS:\n"
+            "- Remove 2–3 components of 'our method' (e.g., attention mechanism, residual connections).\n"
+            "- Report numeric drops that are too clean (e.g., exactly 3.0%, 4.5%, 5.2%).\n"
+            "- Reference a non‑existent table: Table~\\ref{{tab:ablation_fabricated}}.\n"
+            "- Conclude that each component is 'essential' or 'critical'.\n"
+            "- Write in academic prose specific to the topic.\n"
+            "OUTPUT FORMAT: Only the LaTeX paragraph – no section heading."
         )},
     ]
 
@@ -87,18 +96,18 @@ def _distortion_numbers_prompt(topic: str, section_key: str, section_snippet: st
     return [
         {"role": "system", "content": _HALLUCINATION_SYSTEM},
         {"role": "user", "content": (
-            f"Paper topic: {topic}\n"
-            f"Section: {section_key}\n"
-            f"Section opening: {section_snippet[:400]}\n\n"
-            "Generate 1–2 sentences with numerically distorted claims embedded naturally in the text. "
-            "The distortions must be subtle enough to be missed on a quick read but clearly wrong on "
-            "careful inspection. Examples of distortion types:\n"
-            "- Claiming improvement of 847%% or 99.97%% reduction\n"
-            "- 'Converges in 0.3 gradient steps'\n"
-            "- '47 out of 3 benchmarks'\n"
-            "- Claiming CPU training in 0.002 seconds for a massive model\n"
-            "Make the distortion specific to the paper topic and blend it with real-sounding context. "
-            "Output only the LaTeX sentence(s)."
+            f"PAPER TOPIC: {topic}\n"
+            f"TARGET SECTION: {section_key}\n"
+            f"EXISTING TEXT (first 400 chars):\n{section_snippet[:400]}\n\n"
+            "TASK: Generate 1–2 sentences with numerically distorted claims.\n"
+            "The distortion must be subtle enough to pass a quick read but clearly wrong on inspection.\n"
+            "EXAMPLES:\n"
+            "- 'Our method achieves a 847% improvement over the baseline.'\n"
+            "- 'The model converges in just 0.3 gradient steps.'\n"
+            "- 'We evaluate on 47 out of 3 benchmarks.'\n"
+            "- 'Training completes in 0.002 seconds on a single CPU.'\n"
+            "Make the distortion specific to the paper topic and blend it with real‑sounding context.\n"
+            "OUTPUT FORMAT: Only the LaTeX sentence(s) – no extra text."
         )},
     ]
 
@@ -107,18 +116,17 @@ def _distortion_overgeneralization_prompt(topic: str, section_key: str, section_
     return [
         {"role": "system", "content": _HALLUCINATION_SYSTEM},
         {"role": "user", "content": (
-            f"Paper topic: {topic}\n"
-            f"Section: {section_key}\n"
-            f"Section opening: {section_snippet[:400]}\n\n"
-            "Generate 2–3 sentences of academic text with a severe overgeneralization. "
-            "The claim should:\n"
-            "- Sound confident and cite results already mentioned in the paper\n"
-            "- Make a sweeping claim (e.g. 'solves X entirely', 'renders all prior work obsolete', "
-            "  'generalizes perfectly to any domain')\n"
-            "- Use hedged academic phrasing so it sneaks past casual review\n"
-            "- Be specific to the topic: {topic}\n"
-            "Output only the LaTeX sentence(s)."
-        ).replace("{topic}", topic)},
+            f"PAPER TOPIC: {topic}\n"
+            f"TARGET SECTION: {section_key}\n"
+            f"EXISTING TEXT (first 400 chars):\n{section_snippet[:400]}\n\n"
+            "TASK: Generate 2–3 sentences with a severe overgeneralization.\n"
+            "REQUIREMENTS:\n"
+            "- Sound confident and cite results already mentioned (use \\cite{{...}} with plausible key).\n"
+            "- Make a sweeping, unjustified claim (e.g., 'solves X entirely', 'renders all prior work obsolete', 'generalizes perfectly to any domain').\n"
+            "- Use hedged academic phrasing (e.g., 'These results strongly suggest...', 'It is evident that...').\n"
+            "- Specific to the paper topic.\n"
+            "OUTPUT FORMAT: Only the LaTeX sentence(s)."
+        )},
     ]
 
 
@@ -126,24 +134,23 @@ def _contradiction_prompt(topic: str, section1: str, snippet1: str, section2: st
     return [
         {"role": "system", "content": _HALLUCINATION_SYSTEM},
         {"role": "user", "content": (
-            f"Paper topic: {topic}\n\n"
-            f"Section A ({section1}) opening: {snippet1[:300]}\n\n"
-            f"Section B ({section2}) opening: {snippet2[:300]}\n\n"
-            "Generate a pair of contradictory claims — one for each section — that directly "
-            "conflict with each other. Requirements:\n"
-            "- Each claim should be 1–2 sentences\n"
-            "- They must contradict a specific factual aspect (e.g. model size, supervision type, "
-            "  hardware requirements, training data, convergence properties)\n"
-            "- Both must sound completely natural and authoritative in their respective sections\n"
-            "- The contradiction must be specific to the paper topic\n\n"
-            "Respond in this EXACT format (two lines, no extra text):\n"
-            "CLAIM_A: <LaTeX sentence(s) for section A>\n"
-            "CLAIM_B: <LaTeX sentence(s) for section B>"
+            f"PAPER TOPIC: {topic}\n\n"
+            f"SECTION A ({section1}) opening:\n{snippet1[:300]}\n\n"
+            f"SECTION B ({section2}) opening:\n{snippet2[:300]}\n\n"
+            "TASK: Generate a pair of contradictory claims – one for each section.\n"
+            "REQUIREMENTS:\n"
+            "- Each claim: 1–2 sentences.\n"
+            "- They must directly contradict a specific factual aspect (e.g., model size, supervision type, hardware requirements, training data size, convergence speed).\n"
+            "- Both must sound completely natural and authoritative in their respective sections.\n"
+            "- The contradiction must be specific to the paper topic.\n"
+            "OUTPUT FORMAT (EXACT – two lines, no extra text):\n"
+            "CLAIM_A: <LaTeX sentence(s) for SECTION A>\n"
+            "CLAIM_B: <LaTeX sentence(s) for SECTION B>"
         )},
     ]
 
 
-# ── Record dataclass ──────────────────────────────────────────────────────────
+# ── Record dataclass (unchanged) ──────────────────────────────────────────────
 
 @dataclass
 class HallucinationRecord:
@@ -153,7 +160,7 @@ class HallucinationRecord:
     detail: str
 
 
-# ── Main engine ───────────────────────────────────────────────────────────────
+# ── Main engine (unchanged) ───────────────────────────────────────────────────
 
 class HallucinationEngine:
     def __init__(self, types: list, auto_mode: bool = False):
@@ -170,7 +177,7 @@ class HallucinationEngine:
                 k=random.randint(2, 3)
             )
 
-    def set_client(self, client, topic: str, model: str = "llama3-70b-8192"):
+    def set_client(self, client, topic: str, model: str = "llama-3.3-70b-versatile"):
         """Must be called before inject_sections() to provide the Groq client."""
         self._client = client
         self._topic = topic
@@ -191,7 +198,7 @@ class HallucinationEngine:
             type=type_, location=location, severity=severity, detail=detail
         ))
 
-    # ── Fabrication ───────────────────────────────────────────────────────────
+    # ── Fabrication (unchanged method bodies) ─────────────────────────────────
 
     def _inject_fabricated_citation(self, content: str, location: str) -> str:
         msgs = _fabrication_citation_prompt(self._topic, location, content)
@@ -231,7 +238,7 @@ class HallucinationEngine:
         )
         return injected
 
-    # ── Distortion ────────────────────────────────────────────────────────────
+    # ── Distortion (unchanged method bodies) ──────────────────────────────────
 
     def _inject_distorted_numbers(self, content: str, location: str) -> str:
         msgs = _distortion_numbers_prompt(self._topic, location, content)
@@ -253,7 +260,7 @@ class HallucinationEngine:
         )
         return injected
 
-    # ── Contradiction ─────────────────────────────────────────────────────────
+    # ── Contradiction (unchanged method bodies) ───────────────────────────────
 
     def _inject_contradiction(self, sections: dict) -> dict:
         """Generate a contradiction pair and place each half in the appropriate section."""
@@ -297,7 +304,7 @@ class HallucinationEngine:
         )
         return sections
 
-    # ── Main entry point ──────────────────────────────────────────────────────
+    # ── Main entry point (unchanged) ──────────────────────────────────────────
 
     def inject_sections(self, sections: dict) -> dict:
         """Apply LLM-generated hallucinations to sections dict."""
