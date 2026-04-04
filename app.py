@@ -49,14 +49,27 @@ def normalize_citations(content: str, valid_keys: list[str]) -> str:
 
 def sanitize_latex(content: str) -> str:
     """
-    Aggressively sanitise LaTeX to avoid compilation errors.
-    - Removes unknown commands (not in a whitelist)
-    - Removes figure environments (causes 'Not in outer par mode')
-    - Keeps table environments
-    - Removes \includegraphics (missing files)
-    - Fixes common injection artifacts
+    Aggressively remove duplicate abstracts, plain‑text headings,
+    injection leftovers (CLAIM_A:), unknown commands, and other errors.
     """
-    # Whitelist of safe LaTeX commands (common in academic papers)
+    # 1. Remove injection artifacts: \@..., \ignorespaces, and CLAIM_A:/CLAIM_B: lines
+    content = re.sub(r'\\@[A-Za-z]+', '', content)
+    content = re.sub(r'\\ignorespaces', '', content)
+    content = re.sub(r'^CLAIM_[AB]:.*$', '', content, flags=re.MULTILINE)
+    
+    # 2. Remove plain‑text abstract headings (e.g., "ABSTRACT", "Abstract", "ABSTRACT:")
+    content = re.sub(r'^\s*(?:A|a)bstract\s*:?\s*$', '', content, flags=re.MULTILINE)
+    
+    # 3. Remove all \begin{abstract}...\end{abstract} blocks (we will re-add one later)
+    content = re.sub(r'\\begin\{abstract\}.*?\\end\{abstract\}', '', content, flags=re.DOTALL)
+    
+    # 4. Remove any \section*{Abstract} or \section{Abstract}
+    content = re.sub(r'\\section\*?\{Abstract\}', '', content, flags=re.IGNORECASE)
+    
+    # 5. Remove orphaned \label{sec:...}
+    content = re.sub(r'\\label\{sec:[^}]+\}', '', content)
+    
+    # 6. Remove unknown LaTeX commands (whitelist as before)
     safe_commands = {
         'section', 'subsection', 'subsubsection', 'label', 'ref', 'cite', 'citep', 'citet',
         'begin', 'end', 'input', 'include', 'bibliography', 'bibliographystyle',
@@ -79,48 +92,32 @@ def sanitize_latex(content: str) -> str:
         'toprule', 'midrule', 'bottomrule', 'hline', 'cline', 'multirow', 'tabular',
         'tabularx', 'booktabs', 'threeparttable', 'tablenotes',
     }
-    # Pattern to match a LaTeX command: backslash + letters (optionally with star)
     cmd_pattern = r'\\([a-zA-Z]+(?:\*)?)'
-    
-    def replace_unknown_cmd(match):
+    def replace_unknown(match):
         cmd = match.group(1)
-        if cmd in safe_commands:
-            return match.group(0)  # keep it
-        else:
-            # Remove unknown command (including the backslash)
-            return ''
+        return match.group(0) if cmd in safe_commands else ''
+    content = re.sub(cmd_pattern, replace_unknown, content)
     
-    content = re.sub(cmd_pattern, replace_unknown_cmd, content)
-    
-    # Remove figure environments (cause "Not in outer par mode" and missing files)
+    # 7. Remove figure environments and \includegraphics
     content = re.sub(r'\\begin\{figure\}.*?\\end\{figure\}', '', content, flags=re.DOTALL)
-    content = re.sub(r'\\begin\{figure\*\}.*?\\end\{figure\*\}', '', content, flags=re.DOTALL)
-    
-    # Keep table environments (do NOT remove)
-    # But remove \includegraphics inside tables or anywhere
     content = re.sub(r'\\includegraphics\[.*?\]\{.*?\}', '', content)
     content = re.sub(r'\\includegraphics\{.*?\}', '', content)
     
-    # Remove empty or problematic \fbox, \rule (optional)
-    content = re.sub(r'\\fbox\{.*?\}', '', content)
-    
-    # Remove injection artifacts: \@XXXX and \ignorespaces
-    content = re.sub(r'\\@[A-Za-z]+', '', content)
-    content = re.sub(r'\\ignorespaces', '', content)
-    
-    # Remove tablenotes (already removed by environment removal? No, we keep tables but remove tablenotes if present)
+    # 8. Remove tablenotes
     content = re.sub(r'\\begin\{tablenotes\}.*?\\end\{tablenotes\}', '', content, flags=re.DOTALL)
     
-    # Convert theorem* and proof* to standard
+    # 9. Convert theorem* and proof* to standard
     content = re.sub(r'\\begin\{theorem\*\}', r'\\begin{theorem}', content)
     content = re.sub(r'\\end\{theorem\*\}', r'\\end{theorem}', content)
     content = re.sub(r'\\begin\{proof\*\}', r'\\begin{proof}', content)
     content = re.sub(r'\\end\{proof\*\}', r'\\end{proof}', content)
     
-    # Remove sequences of multiple closing braces
+    # 10. Reduce multiple closing braces
     content = re.sub(r'\}{3,}', '}}', content)
     
-    return content
+    # 11. Strip extra whitespace and blank lines
+    content = re.sub(r'\n\s*\n', '\n\n', content)
+    return content.strip()
 
 
 # ── Page config ───────────────────────────────────────────────────────────────
