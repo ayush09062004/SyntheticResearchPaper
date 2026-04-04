@@ -204,7 +204,7 @@ with st.sidebar:
 
     model = st.selectbox(
         "Groq Model",
-        ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "openai/gpt-oss-120b", "openai/gpt-oss-20b","meta-llama/llama-4-scout-17b-16e-instruct","qwen/qwen3-32b"],
+        ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"],
         index=0,
     )
 
@@ -325,10 +325,14 @@ if generate_btn:
             auto_mode=auto_mode,
         )
 
+        # ── Wire LLM client into injection & hallucination engines ──────────────
+        injection_engine.set_client(client_mgr, topic, model)
+        hallucination_engine.set_client(client_mgr, topic, model)
+
         # ── Section generation ────────────────────────────────────────────────
         sections_order = ["abstract", "intro", "related", "method", "experiments", "results", "conclusion"]
         generated_sections: dict[str, str] = {}
-        total_steps = len(sections_order) + 2  # +2 for refs + assembly
+        total_steps = len(sections_order) + 4  # +4 for refs, assembly, LLM injections
 
         for i, section_key in enumerate(sections_order):
             status_container.markdown(
@@ -369,7 +373,7 @@ if generate_btn:
 
         # ── Apply injections ──────────────────────────────────────────────────
         status_container.markdown(
-            '<div class="section-label">💉 Applying Injection Patterns...</div>',
+            '<div class="section-label">💉 Generating LLM Injection Patterns...</div>',
             unsafe_allow_html=True,
         )
         generated_sections = injection_engine.inject_sections(generated_sections)
@@ -377,7 +381,7 @@ if generate_btn:
 
         # ── Apply hallucinations ──────────────────────────────────────────────
         status_container.markdown(
-            '<div class="section-label">🧠 Applying Hallucination Patterns...</div>',
+            '<div class="section-label">🧠 Generating LLM Hallucination Patterns...</div>',
             unsafe_allow_html=True,
         )
         generated_sections = hallucination_engine.inject_sections(generated_sections)
