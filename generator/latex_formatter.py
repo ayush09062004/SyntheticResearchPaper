@@ -30,6 +30,7 @@ _BASE = r"""
 \usepackage{tabularx}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
+\usepackage{comment}          # <-- ADDED: fixes \begin{comment} errors
 """
 
 _THEOREMS = r"""
