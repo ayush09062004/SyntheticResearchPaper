@@ -269,55 +269,61 @@ def build_main_tex(
 
 
 def wrap_section(section_key: str, content: str) -> str:
-    """
-    Wrap raw LLM output in a proper LaTeX section command.
-
-    Key fixes vs original:
-    - Only strips top-level \\section{} — keeps \\subsection/\\subsubsection.
-    - More robust markdown-fence stripping (handles ```latex variant).
-    - Abstract: unwraps any accidental abstract env, returns bare abstract env.
-    - Normalises excessive blank lines.
-    """
-    label   = SECTION_LABELS.get(section_key, section_key.capitalize())
+    label = SECTION_LABELS.get(section_key, section_key.capitalize())
     stripped = content.strip()
 
-    # 1. Remove markdown code fences (```latex...``` or ```...```)
+    # Remove markdown fences
     stripped = re.sub(r'^```[a-zA-Z]*\s*', '', stripped)
     stripped = re.sub(r'\s*```$', '', stripped)
     stripped = stripped.strip()
 
-    # 2. Remove ONLY top-level \section{...} / \section*{...}
-    stripped = re.sub(r'\\section\*?\{[^}]*\}', '', stripped)
-
-    # 3. Remove top-level \label{sec:...} (we add our own)
-    stripped = re.sub(r'\\label\{sec:[^}]+\}', '', stripped)
-
-    # 4. If abstract: strip any existing abstract environment wrapper
+    # For abstract: handle duplication by merging
     if section_key == "abstract":
-        stripped = re.sub(
-            r'\\begin\{abstract\}(.*?)\\end\{abstract\}',
-            lambda m: m.group(1).strip(),
-            stripped,
-            flags=re.DOTALL,
-        )
+        # Extract any existing abstract content (with or without environment)
+        # Pattern to capture content inside \begin{abstract}...\end{abstract}
+        env_match = re.search(r'\\begin\{abstract\}(.*?)\\end\{abstract\}', stripped, re.DOTALL)
+        if env_match:
+            inner = env_match.group(1).strip()
+            # Remove the environment from stripped
+            stripped = re.sub(r'\\begin\{abstract\}.*?\\end\{abstract\}', '', stripped, flags=re.DOTALL)
+            # Also remove any plain \section{Abstract} or \section*{Abstract}
+            stripped = re.sub(r'\\section\*?\{Abstract\}', '', stripped, flags=re.IGNORECASE)
+            # Merge: if there is additional text outside the environment, prepend it
+            if stripped.strip():
+                merged = stripped.strip() + "\n\n" + inner
+            else:
+                merged = inner
+        else:
+            # No environment found; remove plain heading and keep rest
+            stripped = re.sub(r'\\section\*?\{Abstract\}', '', stripped, flags=re.IGNORECASE)
+            merged = stripped.strip()
+        # Wrap in abstract environment
+        if not merged:
+            merged = "\\noindent (Content not generated.)"
+        return f"\\begin{{abstract}}\n{merged}\n\\end{{abstract}}"
 
-    # 5. Remove markdown headings (# Heading)
-    stripped = re.sub(r'^\s*#{1,6}\s+.*$', '', stripped, flags=re.MULTILINE)
-
-    # 6. Remove bare plain-text heading lines matching this section label
-    heading_pattern = r'^\s*' + re.escape(label) + r'\s*:?\s*$'
-    stripped = re.sub(heading_pattern, '', stripped, flags=re.MULTILINE | re.IGNORECASE)
-
-    # 7. Collapse 3+ consecutive newlines → double newline
-    stripped = re.sub(r'\n{3,}', '\n\n', stripped)
-    stripped = stripped.strip()
-
-    # 8. Placeholder for empty content
-    if not stripped:
-        stripped = "\\noindent (Content not generated.)"
-
-    # 9. Wrap appropriately
-    if section_key == "abstract":
-        return f"\\begin{{abstract}}\n{stripped}\n\\end{{abstract}}"
+    # For other sections (including conclusion)
+    # Remove any existing \section{...} that matches our intended label
+    # but capture the content after it so we can merge.
+    pattern = r'\\section\*?\{' + re.escape(label) + r'\}\s*(.*?)(?=\\section|\Z)'
+    match = re.search(pattern, stripped, re.DOTALL | re.IGNORECASE)
+    if match:
+        inner_content = match.group(1).strip()
+        # Remove the matched section heading and its content from stripped
+        stripped = re.sub(pattern, '', stripped, flags=re.DOTALL | re.IGNORECASE)
+        # Merge: any leftover text before the heading? (rare)
+        if stripped.strip():
+            merged = stripped.strip() + "\n\n" + inner_content
+        else:
+            merged = inner_content
     else:
-        return f"\\section{{{label}}}\n\\label{{sec:{section_key}}}\n\n{stripped}"
+        # No duplicate heading found, just remove any stray \label{sec:...}
+        merged = re.sub(r'\\label\{sec:[^}]+\}', '', stripped)
+        merged = merged.strip()
+
+    # Final cleanup: collapse multiple newlines
+    merged = re.sub(r'\n{3,}', '\n\n', merged)
+    if not merged:
+        merged = "\\noindent (Content not generated.)"
+
+    return f"\\section{{{label}}}\n\\label{{sec:{section_key}}}\n\n{merged}"
