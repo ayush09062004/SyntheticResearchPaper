@@ -33,24 +33,48 @@ def extract_bibtex_keys(bibtex: str) -> list[str]:
 
 
 def normalize_citations(content: str, valid_keys: list[str]) -> str:
-    """Replace any \cite{...} with a key that exists in valid_keys."""
+    """
+    Replace any \cite{...} that uses a key not in valid_keys with \cite{unknown}.
+    Leaves valid keys untouched.
+    """
     if not valid_keys:
-        return content
-    pattern = r'\\(?:cite|citep|citet)\{([^}]+)\}'
+        # If no valid keys, replace all with unknown (dummy will be added)
+        pattern = r'\\(?:cite|citep|citet)\{([^}]+)\}'
+        return re.sub(pattern, r'\\cite{unknown}', content)
+    
     def replacer(match):
         full = match.group(0)
         key = match.group(1).strip()
         if key not in valid_keys:
-            cmd = full.split('{')[0]  # keep the original command
-            return f"{cmd}{{{valid_keys[0]}}}"
+            # Replace with unknown citation
+            return r'\cite{unknown}'
         return full
+    
+    pattern = r'\\(?:cite|citep|citet)\{([^}]+)\}'
     return re.sub(pattern, replacer, content)
+
+
+def add_unknown_bib_entry(bibtex: str) -> str:
+    """Add a dummy BibTeX entry for unknown citations."""
+    unknown_entry = """
+@misc{unknown,
+  author = {Unknown Author},
+  title = {Unknown Reference},
+  year = {2024},
+  note = {Placeholder for generated citations that did not match any real key}
+}
+"""
+    # Only add if not already present
+    if "@misc{unknown," not in bibtex:
+        return bibtex.strip() + "\n\n" + unknown_entry.strip()
+    return bibtex
 
 
 def sanitize_latex(content: str) -> str:
     """
     Aggressively remove duplicate abstracts, plain‑text headings,
     injection leftovers (CLAIM_A:), unknown commands, and other errors.
+    Does NOT remove abstract environment (that is handled by wrap_section).
     """
     # 1. Remove injection artifacts: \@..., \ignorespaces, and CLAIM_A:/CLAIM_B: lines
     content = re.sub(r'\\@[A-Za-z]+', '', content)
@@ -60,18 +84,16 @@ def sanitize_latex(content: str) -> str:
     content = re.sub(r'^\s*#{1,6}\s+.*$', '', content, flags=re.MULTILINE)
     
     # 2. Remove plain‑text abstract headings (e.g., "ABSTRACT", "Abstract", "ABSTRACT:")
+    #    but do NOT remove the abstract environment itself.
     content = re.sub(r'^\s*(?:A|a)bstract\s*:?\s*$', '', content, flags=re.MULTILINE)
     
-    # 3. Remove all \begin{abstract}...\end{abstract} blocks (we will re-add one later)
-    content = re.sub(r'\\begin\{abstract\}.*?\\end\{abstract\}', '', content, flags=re.DOTALL)
-    
-    # 4. Remove any \section*{Abstract} or \section{Abstract}
+    # 3. Remove any \section*{Abstract} or \section{Abstract} (these should not exist after wrapping)
     content = re.sub(r'\\section\*?\{Abstract\}', '', content, flags=re.IGNORECASE)
     
-    # 5. Remove orphaned \label{sec:...}
+    # 4. Remove orphaned \label{sec:...}
     content = re.sub(r'\\label\{sec:[^}]+\}', '', content)
     
-    # 6. Remove unknown LaTeX commands (whitelist as before)
+    # 5. Remove unknown LaTeX commands (whitelist as before)
     safe_commands = {
         'section', 'subsection', 'subsubsection', 'label', 'ref', 'cite', 'citep', 'citet',
         'begin', 'end', 'input', 'include', 'bibliography', 'bibliographystyle',
@@ -100,24 +122,24 @@ def sanitize_latex(content: str) -> str:
         return match.group(0) if cmd in safe_commands else ''
     content = re.sub(cmd_pattern, replace_unknown, content)
     
-    # 7. Remove figure environments and \includegraphics
+    # 6. Remove figure environments and \includegraphics (optional)
     content = re.sub(r'\\begin\{figure\}.*?\\end\{figure\}', '', content, flags=re.DOTALL)
     content = re.sub(r'\\includegraphics\[.*?\]\{.*?\}', '', content)
     content = re.sub(r'\\includegraphics\{.*?\}', '', content)
     
-    # 8. Remove tablenotes
+    # 7. Remove tablenotes
     content = re.sub(r'\\begin\{tablenotes\}.*?\\end\{tablenotes\}', '', content, flags=re.DOTALL)
     
-    # 9. Convert theorem* and proof* to standard
+    # 8. Convert theorem* and proof* to standard
     content = re.sub(r'\\begin\{theorem\*\}', r'\\begin{theorem}', content)
     content = re.sub(r'\\end\{theorem\*\}', r'\\end{theorem}', content)
     content = re.sub(r'\\begin\{proof\*\}', r'\\begin{proof}', content)
     content = re.sub(r'\\end\{proof\*\}', r'\\end{proof}', content)
     
-    # 10. Reduce multiple closing braces
+    # 9. Reduce multiple closing braces
     content = re.sub(r'\}{3,}', '}}', content)
     
-    # 11. Strip extra whitespace and blank lines
+    # 10. Strip extra whitespace and blank lines
     content = re.sub(r'\n\s*\n', '\n\n', content)
     return content.strip()
 
@@ -349,6 +371,8 @@ if generate_btn:
             temperature=0.6,
         )
 
+        # Add dummy unknown entry to handle any invalid citations later
+        references_bib = add_unknown_bib_entry(references_bib)
         citation_keys = extract_bibtex_keys(references_bib)
 
         # ── Section generation ───────────────────────────────────────────────
@@ -371,7 +395,7 @@ if generate_btn:
             if citation_keys:
                 keys_str = ", ".join(citation_keys)
                 user_msg = messages[-1]["content"]
-                user_msg += f"\n\nIMPORTANT: You MUST use only the following BibTeX keys when citing: {keys_str}. Use these exact keys (e.g., \\cite{{{citation_keys[0]}}})."
+                user_msg += f"\n\nIMPORTANT: You MUST use only the following BibTeX keys when citing: {keys_str}. Use these exact keys (e.g., \\cite{{{citation_keys[0]}}}). If you need to cite something not in this list, use \\cite{{unknown}}."
                 messages[-1]["content"] = user_msg
 
             raw = client_mgr.complete(
@@ -381,7 +405,7 @@ if generate_btn:
                 temperature=0.75,
             )
 
-            # Fix citations immediately
+            # Fix citations immediately (replace invalid keys with unknown)
             if citation_keys:
                 raw = normalize_citations(raw, citation_keys)
 
@@ -405,6 +429,7 @@ if generate_btn:
 
         # ── Final sanitisation: citations + LaTeX fixes ───────────────────────
         for sec_key in sections_order:
+            # Normalize citations again (injections/hallucinations may have added new ones)
             generated_sections[sec_key] = normalize_citations(generated_sections[sec_key], citation_keys)
             generated_sections[sec_key] = sanitize_latex(generated_sections[sec_key])
 
