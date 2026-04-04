@@ -60,21 +60,23 @@ STYLE_GUIDES: dict[str, str] = {
 }
 
 # --------------------------------------------------------------------------
-# Section-level prompt templates (refined for better research paper generation)
+# Solidified system prompt
 # --------------------------------------------------------------------------
-
 def _system_prompt(topic: str, conference: str) -> str:
     style = STYLE_GUIDES.get(conference, STYLE_GUIDES["Custom"])
     return (
         f"You are a senior researcher writing a full academic paper about: {topic}.\n"
-        f"Style guide: {style}\n"
-        "Write ONLY valid LaTeX content for the requested section. "
-        "Do NOT include \\documentclass, \\begin{{document}}, or \\end{{document}} "
-        "unless explicitly asked. Do NOT wrap in markdown code fences. "
-        "Use \\cite{{key}} with realistic keys (e.g., \\cite{{goodfellow2016deep}}, \\cite{{vaswani2017attention}}). "
-        "Do NOT use placeholder text like '[CITATION NEEDED]' or 'TODO'. Generate realistic, technically sound content. "
-        "Each section should be self‑contained but consistent with others. Use \\label{{sec:...}}, \\label{{fig:...}}, \\label{{tab:...}} "
-        "for cross‑referencing. Be detailed, technical, and convincing."
+        f"Style guide: {style}\n\n"
+        "CRITICAL RULES:\n"
+        "1. Write ONLY valid LaTeX content for the requested section.\n"
+        "2. Do NOT include \\documentclass, \\begin{document}, or \\end{document}.\n"
+        "3. Do NOT wrap output in markdown code fences (```).\n"
+        "4. Do NOT use placeholder text like '[CITATION NEEDED]' or 'TODO'.\n"
+        "5. Use \\cite{key} with realistic keys (e.g., \\cite{goodfellow2016deep}).\n"
+        "6. Use \\label{sec:...}, \\label{fig:...}, \\label{tab:...} for cross‑referencing.\n"
+        "7. Do NOT use the 'comment' environment (\\begin{comment}) – it is not allowed.\n"
+        "8. Be detailed, technical, and convincing.\n"
+        "9. Generate realistic, self‑contained content consistent with other sections."
     )
 
 
@@ -84,11 +86,16 @@ def build_abstract_prompt(topic: str, conference: str) -> list[dict]:
         {
             "role": "user",
             "content": (
-                f"Write the Abstract section (LaTeX) for a paper on: {topic}.\n"
-                "The abstract must include: (1) background/context, (2) problem statement, (3) proposed approach, "
-                "(4) key results (quantitative if possible), (5) broader implications. Length: 150–250 words.\n"
-                "Output only the LaTeX content starting with \\begin{{abstract}} and ending with \\end{{abstract}}. "
-                "Do NOT include a section command like \\section*{{Abstract}} – use the abstract environment."
+                f"PAPER TOPIC: {topic}\n"
+                f"CONFERENCE STYLE: {conference}\n\n"
+                "TASK: Write the Abstract section (LaTeX).\n"
+                "REQUIREMENTS:\n"
+                "- Include: (1) background/context, (2) problem statement, (3) proposed approach,\n"
+                "  (4) key results (quantitative if possible), (5) broader implications.\n"
+                "- Length: 150–250 words.\n"
+                "- Use the abstract environment: \\begin{abstract} ... \\end{abstract}\n"
+                "- Do NOT use \\section*{Abstract}.\n"
+                "OUTPUT FORMAT: Only the LaTeX abstract environment – no extra text."
             ),
         },
     ]
@@ -100,11 +107,18 @@ def build_intro_prompt(topic: str, conference: str) -> list[dict]:
         {
             "role": "user",
             "content": (
-                f"Write the Introduction section (LaTeX) for a paper on: {topic}.\n"
-                "Structure: 4–5 paragraphs. Paragraph 1: importance of the problem and real‑world impact. "
-                "Paragraph 2: shortcomings of existing work (cite 3–5 papers). Paragraph 3: our proposed approach and its novelty. "
-                "Paragraph 4: bullet list of contributions (use \\begin{{itemize}}). Paragraph 5: outline of the paper's structure.\n"
-                "Use \\section{{Introduction}} and add \\label{{sec:intro}}. Output only the LaTeX section content."
+                f"PAPER TOPIC: {topic}\n"
+                f"CONFERENCE STYLE: {conference}\n\n"
+                "TASK: Write the Introduction section (LaTeX).\n"
+                "REQUIREMENTS:\n"
+                "- Structure: 4–5 paragraphs.\n"
+                "  P1: importance of the problem and real‑world impact.\n"
+                "  P2: shortcomings of existing work (cite 3–5 papers).\n"
+                "  P3: our proposed approach and its novelty.\n"
+                "  P4: bullet list of contributions (use \\begin{itemize}).\n"
+                "  P5: outline of the paper's structure.\n"
+                "- Use \\section{Introduction} and \\label{sec:intro}.\n"
+                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
             ),
         },
     ]
@@ -116,12 +130,16 @@ def build_related_work_prompt(topic: str, conference: str) -> list[dict]:
         {
             "role": "user",
             "content": (
-                f"Write the Related Work section (LaTeX) for a paper on: {topic}.\n"
-                "Organize the literature into 3–4 thematic subsections (e.g., 'Classical Approaches', 'Deep Learning Methods', 'Hybrid Models'). "
-                "For each theme, discuss 3–5 representative papers, highlighting their strengths and weaknesses. "
-                "End with a paragraph that clearly identifies the research gap that our work fills.\n"
-                "Cite 10–15 works using \\cite{{}}. Use \\section{{Related Work}} and \\subsection{{...}} for each theme. "
-                "Output only the LaTeX section content."
+                f"PAPER TOPIC: {topic}\n"
+                f"CONFERENCE STYLE: {conference}\n\n"
+                "TASK: Write the Related Work section (LaTeX).\n"
+                "REQUIREMENTS:\n"
+                "- Organize into 3–4 thematic subsections (e.g., 'Classical Approaches', 'Deep Learning Methods', 'Hybrid Models').\n"
+                "- For each theme, discuss 3–5 representative papers, highlighting strengths and weaknesses.\n"
+                "- End with a paragraph identifying the research gap our work fills.\n"
+                "- Cite 10–15 works using \\cite{}.\n"
+                "- Use \\section{Related Work} and \\subsection{...} for each theme.\n"
+                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
             ),
         },
     ]
@@ -133,12 +151,16 @@ def build_methodology_prompt(topic: str, conference: str) -> list[dict]:
         {
             "role": "user",
             "content": (
-                f"Write the Methodology section (LaTeX) for a paper on: {topic}.\n"
-                "Include at least three subsections: 'Problem Formulation', 'Proposed Architecture', 'Training/Inference Details'. "
-                "Provide mathematical formulations with numbered equations (\\begin{{equation}} ... \\end{{equation}}). "
-                "Describe data preprocessing, loss functions, optimization algorithms, and hyperparameters. "
-                "If applicable, include pseudocode using algorithmicx or algorithm2e.\n"
-                "Use \\section{{Methodology}} and \\label{{sec:method}}. Output only the LaTeX section content."
+                f"PAPER TOPIC: {topic}\n"
+                f"CONFERENCE STYLE: {conference}\n\n"
+                "TASK: Write the Methodology section (LaTeX).\n"
+                "REQUIREMENTS:\n"
+                "- Include at least three subsections: 'Problem Formulation', 'Proposed Architecture', 'Training/Inference Details'.\n"
+                "- Provide mathematical formulations with numbered equations (\\begin{equation} ... \\end{equation}).\n"
+                "- Describe data preprocessing, loss functions, optimization algorithms, hyperparameters.\n"
+                "- If applicable, include pseudocode using algorithmicx or algorithm2e.\n"
+                "- Use \\section{Methodology} and \\label{sec:method}.\n"
+                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
             ),
         },
     ]
@@ -150,12 +172,19 @@ def build_experiments_prompt(topic: str, conference: str) -> list[dict]:
         {
             "role": "user",
             "content": (
-                f"Write the Experiments section (LaTeX) for a paper on: {topic}.\n"
-                "Structure: (1) Datasets – describe each dataset, train/val/test splits, and any preprocessing. "
-                "(2) Baselines – list and briefly explain competing methods (cite them). (3) Implementation details – hardware, software, hyperparameters. "
-                "(4) Evaluation metrics – define all metrics used. (5) Main results – present a table (\\begin{{table}}[t] \\centering \\caption{{...}} \\label{{tab:main}} ... \\end{{table}}) "
-                "comparing your method to baselines. Include error bars or confidence intervals. (6) Reference to a figure (\\ref{{fig:results}}) that visualizes key trends.\n"
-                "Use \\section{{Experiments}} and \\label{{sec:experiments}}. Output only the LaTeX section content."
+                f"PAPER TOPIC: {topic}\n"
+                f"CONFERENCE STYLE: {conference}\n\n"
+                "TASK: Write the Experiments section (LaTeX).\n"
+                "REQUIREMENTS:\n"
+                "- Structure: (1) Datasets – describe each dataset, splits, preprocessing.\n"
+                "  (2) Baselines – list and briefly explain competing methods (cite them).\n"
+                "  (3) Implementation details – hardware, software, hyperparameters.\n"
+                "  (4) Evaluation metrics – define all metrics.\n"
+                "  (5) Main results – present a table (\\begin{table}[t] \\centering \\caption{...} \\label{tab:main} ... \\end{table})\n"
+                "      comparing your method to baselines. Include error bars or confidence intervals.\n"
+                "  (6) Reference to a figure (\\ref{fig:results}) that visualizes key trends.\n"
+                "- Use \\section{Experiments} and \\label{sec:experiments}.\n"
+                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
             ),
         },
     ]
@@ -167,12 +196,16 @@ def build_results_prompt(topic: str, conference: str) -> list[dict]:
         {
             "role": "user",
             "content": (
-                f"Write the Results and Discussion section (LaTeX) for a paper on: {topic}.\n"
-                "Include: (a) Quantitative analysis – interpret the main results table, explain why your method outperforms baselines. "
-                "(b) Ablation studies – systematically remove components of your method to show their impact (include a second table or figure). "
-                "(c) Qualitative analysis – show examples (e.g., visualisations, case studies) and discuss failure cases. "
-                "(d) Limitations – acknowledge assumptions, scope, and potential weaknesses.\n"
-                "Use \\section{{Results and Discussion}} and \\label{{sec:results}}. Output only the LaTeX section content."
+                f"PAPER TOPIC: {topic}\n"
+                f"CONFERENCE STYLE: {conference}\n\n"
+                "TASK: Write the Results and Discussion section (LaTeX).\n"
+                "REQUIREMENTS:\n"
+                "- (a) Quantitative analysis – interpret main results table, explain outperformance.\n"
+                "- (b) Ablation studies – systematically remove components to show impact (include second table/figure).\n"
+                "- (c) Qualitative analysis – show examples (visualisations, case studies) and discuss failure cases.\n"
+                "- (d) Limitations – acknowledge assumptions, scope, weaknesses.\n"
+                "- Use \\section{Results and Discussion} and \\label{sec:results}.\n"
+                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
             ),
         },
     ]
@@ -184,11 +217,17 @@ def build_conclusion_prompt(topic: str, conference: str) -> list[dict]:
         {
             "role": "user",
             "content": (
-                f"Write the Conclusion section (LaTeX) for a paper on: {topic}.\n"
-                "Summarize the three main contributions of the paper (restate from intro but with new insights). "
-                "Discuss practical implications and theoretical insights. Then clearly state 2–3 concrete limitations. "
-                "Finally, propose 2–3 specific directions for future work (e.g., extensions to other domains, larger‑scale evaluation, theoretical improvements).\n"
-                "Do NOT introduce new results or figures. Use \\section{{Conclusion}} and \\label{{sec:conclusion}}. Output only the LaTeX section content."
+                f"PAPER TOPIC: {topic}\n"
+                f"CONFERENCE STYLE: {conference}\n\n"
+                "TASK: Write the Conclusion section (LaTeX).\n"
+                "REQUIREMENTS:\n"
+                "- Summarize the three main contributions (restate from intro with new insights).\n"
+                "- Discuss practical implications and theoretical insights.\n"
+                "- Clearly state 2–3 concrete limitations.\n"
+                "- Propose 2–3 specific directions for future work.\n"
+                "- Do NOT introduce new results or figures.\n"
+                "- Use \\section{Conclusion} and \\label{sec:conclusion}.\n"
+                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
             ),
         },
     ]
@@ -200,13 +239,16 @@ def build_references_prompt(topic: str, conference: str) -> list[dict]:
         {
             "role": "user",
             "content": (
-                f"Generate a BibTeX (.bib) file with 15–20 realistic references for a paper on: {topic}.\n"
-                "Include a balanced mix: journal articles (e.g., JMLR, TPAMI, Nature), conference papers (NeurIPS, ICML, CVPR, ACL, ICLR), "
-                "books (with publishers), and arXiv preprints (with year and eprint number). "
-                "Use realistic author names (e.g., 'Goodfellow, Ian', 'He, Kaiming', 'Vaswani, Ashish'), "
-                "venues, years (2015–2024), and titles that are plausible for the topic. "
-                "Ensure each BibTeX entry has all required fields (author, title, journal/booktitle, year, pages/doi where applicable). "
-                "Output ONLY valid BibTeX entries, each separated by a blank line. No LaTeX, no explanations, no extra text."
+                f"PAPER TOPIC: {topic}\n"
+                f"CONFERENCE STYLE: {conference}\n\n"
+                "TASK: Generate a BibTeX (.bib) file with 15–20 realistic references.\n"
+                "REQUIREMENTS:\n"
+                "- Balanced mix: journal articles (JMLR, TPAMI, Nature), conference papers (NeurIPS, ICML, CVPR, ACL, ICLR),\n"
+                "  books (with publishers), and arXiv preprints (with year and eprint number).\n"
+                "- Realistic author names (e.g., 'Goodfellow, Ian', 'He, Kaiming', 'Vaswani, Ashish').\n"
+                "- Venues, years (2015–2024), titles plausible for the topic.\n"
+                "- Each entry must have all required fields (author, title, journal/booktitle, year, pages/doi where applicable).\n"
+                "OUTPUT FORMAT: ONLY valid BibTeX entries, each separated by a blank line. No LaTeX, no explanations, no extra text."
             ),
         },
     ]
