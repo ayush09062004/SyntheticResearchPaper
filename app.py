@@ -47,6 +47,30 @@ def normalize_citations(content: str, valid_keys: list[str]) -> str:
     return re.sub(pattern, replacer, content)
 
 
+def sanitize_latex(content: str) -> str:
+    """
+    Remove or fix common LaTeX errors that break compilation.
+    """
+    # 1. Remove empty \includegraphics{} completely (with surrounding whitespace)
+    content = re.sub(r'\s*\\includegraphics\s*\{\s*\}\s*', '', content)
+    
+    # 2. Fix \includegraphics{\fbox{...}} -> just \fbox{...}
+    content = re.sub(r'\\includegraphics\s*\{\s*\\fbox\s*\{[^}]*\}\s*\}', 
+                     lambda m: m.group(0).replace('\\includegraphics', '').strip('{}'), 
+                     content)
+    
+    # 3. Remove entire tablenotes environments (requires threeparttable)
+    content = re.sub(r'\\begin\{tablenotes\}.*?\\end\{tablenotes\}', '', content, flags=re.DOTALL)
+    
+    # 4. Replace theorem* and proof* with standard theorem/proof (amsthm)
+    content = re.sub(r'\\begin\{theorem\*\}', r'\\begin{theorem}', content)
+    content = re.sub(r'\\end\{theorem\*\}', r'\\end{theorem}', content)
+    content = re.sub(r'\\begin\{proof\*\}', r'\\begin{proof}', content)
+    content = re.sub(r'\\end\{proof\*\}', r'\\end{proof}', content)
+    
+    return content
+
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="LaTeX Injector Lab",
@@ -55,7 +79,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS (unchanged, omitted for brevity) ───────────────────────────────
+# ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
@@ -395,6 +419,12 @@ if generate_btn:
         # ── Final pass: ensure all citations (including those added by injections/hallucinations) are valid
         for sec_key in sections_order:
             generated_sections[sec_key] = normalize_citations(generated_sections[sec_key], citation_keys)
+            # Also sanitize LaTeX to remove problematic constructs
+            generated_sections[sec_key] = sanitize_latex(generated_sections[sec_key])
+
+        # Sanitize external files (appendix, supplementary)
+        for filename in external_files:
+            external_files[filename] = sanitize_latex(external_files[filename])
 
         # ── Assemble main.tex ─────────────────────────────────────────────────
         status_container.markdown(
@@ -535,7 +565,7 @@ if generate_btn:
         st.session_state.generation_running = False
 
 else:
-    # ── Idle state (unchanged, omitted for brevity) ───────────────────────────
+    # ── Idle state ────────────────────────────────────────────────────────────
     with col_main:
         st.markdown("""
         <div class="card">
