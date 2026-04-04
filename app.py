@@ -56,6 +56,8 @@ def sanitize_latex(content: str) -> str:
     content = re.sub(r'\\@[A-Za-z]+', '', content)
     content = re.sub(r'\\ignorespaces', '', content)
     content = re.sub(r'^CLAIM_[AB]:.*$', '', content, flags=re.MULTILINE)
+    # Remove markdown headings
+    content = re.sub(r'^\s*#{1,6}\s+.*$', '', content, flags=re.MULTILINE)
     
     # 2. Remove plain‑text abstract headings (e.g., "ABSTRACT", "Abstract", "ABSTRACT:")
     content = re.sub(r'^\s*(?:A|a)bstract\s*:?\s*$', '', content, flags=re.MULTILINE)
