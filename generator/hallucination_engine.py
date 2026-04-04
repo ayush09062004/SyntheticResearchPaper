@@ -223,36 +223,61 @@ class HallucinationEngine:
         return injected
 
     def _inject_fabricated_table(self, content: str, location: str) -> str:
-        msgs    = _fabrication_results_prompt(self._topic, location)
-        payload = self._llm(msgs, max_tokens=600)
-        if not payload:
-            return content
+    msgs    = _fabrication_results_prompt(self._topic, location)
+    payload = self._llm(msgs, max_tokens=600)
+    if not payload:
+        return content
 
-        # FIX: check after stripping; wrap only if not already a table env
-        if not payload.lstrip().startswith("\\begin{table}"):
-            label = f"tab:fabricated_{location}"
-            payload = (
-                f"\\begin{{table}}[t]\n"
-                f"\\centering\n"
-                f"\\caption{{Fabricated comparison results on {self._topic}. "
-                f"Results marked with $\\dagger$ use our proposed evaluation protocol.}}\n"
-                f"\\label{{{label}}}\n"
-                f"\\begin{{tabular}}{{lrrr}}\n"
-                f"\\toprule\n"
-                f"Method & Accuracy & F1 & AUC \\\\\n"
-                f"\\midrule\n"
-                f"{payload}\n"
-                f"\\bottomrule\n"
-                f"\\end{{tabular}}\n"
-                f"\\end{{table}}"
-            )
-
-        injected = content + f"\n\n{payload}\n"
-        self._record(
-            "Fabrication (fake results table)", location, "High",
-            f"LLM-generated fabricated results table in {location}."
+    # Clean potential markdown or extra spaces
+    payload = payload.strip()
+    # If LLM gave a full table, extract just the tabular part
+    if "\\begin{tabular}" in payload:
+        import re
+        match = re.search(r'(\\begin{tabular}.*?\\end{tabular})', payload, re.DOTALL)
+        if match:
+            payload = match.group(1)
+    # Ensure it starts with \begin{tabular}
+    if not payload.startswith("\\begin{tabular}"):
+        # Fallback to a safe, minimal table
+        payload = (
+            "\\begin{tabular}{lccc}\n"
+            "\\toprule\n"
+            "Method & Acc & F1 & AUC \\\\\n"
+            "\\midrule\n"
+            "Baseline & 72.3 & 68.1 & 70.2 \\\\\n"
+            "Ours & 99.1 & 98.7 & 98.9 \\\\\n"
+            "\\bottomrule\n"
+            "\\end{tabular}"
         )
-        return injected
+    else:
+        # Validate: count columns in first row (simple heuristic)
+        lines = payload.split('\n')
+        col_count = None
+        for line in lines:
+            if '\\tabular' in line:
+                # extract column spec e.g., {lccc}
+                spec_match = re.search(r'\{([lcrp@]+)\}', line)
+                if spec_match:
+                    col_count = len(spec_match.group(1))
+                break
+        if col_count and col_count > 0:
+            # Check if any data row has different number of & separators
+            pass  # optional deeper validation
+        # else assume valid
+
+    # Build complete table environment
+    label = f"tab:fabricated_{location}"
+    table_env = (
+        f"\\begin{{table}}[t]\n"
+        f"\\centering\n"
+        f"\\caption{{Fabricated comparison results on {self._topic}.}}\n"
+        f"\\label{{{label}}}\n"
+        f"{payload}\n"
+        f"\\end{{table}}"
+    )
+    injected = content + f"\n\n{table_env}\n"
+    self._record(..., detail=f"LLM-generated table in {location}.")
+    return injected
 
     def _inject_fabricated_ablation(self, content: str, location: str) -> str:
         msgs    = _fabrication_fake_experiment_prompt(self._topic, location, content)
