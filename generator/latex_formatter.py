@@ -189,7 +189,7 @@ def _title_block(topic: str, conference: str) -> str:
     No \IEEEauthorblockN, \institute, \email, \frontmatter, etc.
     """
     safe = topic.replace("\\", "").replace("{", "(").replace("}", ")")
-    full_title = f"Towards {safe}: A Novel Framework for Advanced Applications"
+    full_title = safe
     return (
         f"\\title{{{full_title}}}\n"
         "\\author{Anonymous Author(s) \\\\\n"
