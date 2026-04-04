@@ -179,6 +179,7 @@ SECTION_LABELS = {
     "conclusion":  "Conclusion",
 }
 
+import re
 # --------------------------------------------------------------------------
 # Title block — standard article commands ONLY (no class-specific macros)
 # --------------------------------------------------------------------------
