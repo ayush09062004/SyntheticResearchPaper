@@ -1,5 +1,4 @@
 """
-latex_formatter.py
 Assembles the final main.tex with correct document class and package
 declarations for each supported conference/journal style.
 
@@ -9,7 +8,7 @@ Visual styling approximates each venue's look via geometry, fancyhdr, titlesec,
 multicol, etc. — all bundled with every standard LaTeX distribution.
 """
 
-import re  # <-- MOVED TO TOP
+import re
 
 # --------------------------------------------------------------------------
 # Shared base packages (always safe, always available in TeX Live)
@@ -246,8 +245,8 @@ def build_main_tex(
 def wrap_section(section_key: str, content: str) -> str:
     """
     Wrap raw LLM output in a proper LaTeX section command.
-    Removes markdown fences, existing LaTeX environments, plain‑text headings,
-    and markdown headings (e.g., #, ##, ###) to prevent duplication.
+    Removes markdown fences, existing LaTeX section commands, plain‑text headings,
+    and markdown headings to prevent duplication.
     """
     label = SECTION_LABELS.get(section_key, section_key.capitalize())
     stripped = content.strip()
@@ -260,22 +259,24 @@ def wrap_section(section_key: str, content: str) -> str:
             inner = inner[:-1]
         stripped = "\n".join(inner).strip()
 
-    # 2. Remove any existing LaTeX abstract environment (if abstract)
+    # 2. Remove any existing LaTeX section commands and labels
+    #    This prevents duplicate section headings
+    stripped = re.sub(r'\\section(\*)?\{[^}]*\}', '', stripped)
+    stripped = re.sub(r'\\subsection(\*)?\{[^}]*\}', '', stripped)
+    stripped = re.sub(r'\\subsubsection(\*)?\{[^}]*\}', '', stripped)
+    stripped = re.sub(r'\\label\{sec:[^}]+\}', '', stripped)
+
+    # 3. Remove abstract environment if present (should not be, but just in case)
     if section_key == "abstract":
         stripped = re.sub(r'\\begin\{abstract\}.*?\\end\{abstract\}', '', stripped, flags=re.DOTALL)
-        stripped = re.sub(r'\\section\*?\{Abstract\}', '', stripped, flags=re.IGNORECASE)
 
-    # 3. Remove markdown headings (lines that start with # and a space)
-    #    This removes lines like "# Title", "## ABSTRACT", "### I. INTRODUCTION"
+    # 4. Remove markdown headings (lines that start with # and a space)
     stripped = re.sub(r'^\s*#{1,6}\s+.*$', '', stripped, flags=re.MULTILINE)
 
-    # 4. Remove plain‑text headings (e.g., "ABSTRACT", "Introduction", "Related Work")
+    # 5. Remove plain‑text headings (e.g., "ABSTRACT", "Introduction", "Related Work")
     #    Case‑insensitive, optional colon, entire line.
     heading_pattern = r'^\s*' + re.escape(label) + r'\s*:?\s*$'
     stripped = re.sub(heading_pattern, '', stripped, flags=re.MULTILINE | re.IGNORECASE)
-
-    # 5. Remove any remaining \label{sec:...} that might be orphaned
-    stripped = re.sub(r'\\label\{sec:[^}]+\}', '', stripped)
 
     # 6. Strip again to clean up extra blank lines
     stripped = stripped.strip()
