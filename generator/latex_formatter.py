@@ -9,6 +9,8 @@ Visual styling approximates each venue's look via geometry, fancyhdr, titlesec,
 multicol, etc. — all bundled with every standard LaTeX distribution.
 """
 
+import re  # <-- MOVED TO TOP
+
 # --------------------------------------------------------------------------
 # Shared base packages (always safe, always available in TeX Live)
 # --------------------------------------------------------------------------
@@ -179,7 +181,6 @@ SECTION_LABELS = {
     "conclusion":  "Conclusion",
 }
 
-import re
 # --------------------------------------------------------------------------
 # Title block — standard article commands ONLY (no class-specific macros)
 # --------------------------------------------------------------------------
