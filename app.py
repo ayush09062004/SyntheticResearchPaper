@@ -49,35 +49,75 @@ def normalize_citations(content: str, valid_keys: list[str]) -> str:
 
 def sanitize_latex(content: str) -> str:
     """
-    Aggressively remove or fix common LaTeX errors that break compilation.
-    Handles empty includegraphics, malformed fbox, tablenotes, theorem*,
-    and injection artifacts like \@AIoverwrites, \ignorespaces, etc.
+    Aggressively sanitise LaTeX to avoid compilation errors.
+    - Removes unknown commands (not in a whitelist)
+    - Removes figure environments (causes 'Not in outer par mode')
+    - Keeps table environments
+    - Removes \includegraphics (missing files)
+    - Fixes common injection artifacts
     """
-    # 1. Remove empty \includegraphics{} completely
-    content = re.sub(r'\s*\\includegraphics\s*\{\s*\}\s*', '', content)
+    # Whitelist of safe LaTeX commands (common in academic papers)
+    safe_commands = {
+        'section', 'subsection', 'subsubsection', 'label', 'ref', 'cite', 'citep', 'citet',
+        'begin', 'end', 'input', 'include', 'bibliography', 'bibliographystyle',
+        'title', 'author', 'date', 'maketitle', 'thanks', 'footnote',
+        'emph', 'textbf', 'textit', 'texttt', 'textcolor', 'color',
+        'url', 'href', 'caption', 'centering', 'raggedright', 'raggedleft',
+        'item', 'itemize', 'enumerate', 'description', 'tableofcontents', 'listoffigures',
+        'newpage', 'clearpage', 'pagebreak', 'noindent', 'indent',
+        'hspace', 'vspace', 'hfill', 'vfill', 'rule', 'fbox', 'mbox', 'parbox',
+        'frac', 'sqrt', 'sum', 'int', 'prod', 'lim', 'log', 'exp', 'sin', 'cos', 'tan',
+        'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota',
+        'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma', 'tau', 'upsilon',
+        'phi', 'chi', 'psi', 'omega', 'Gamma', 'Delta', 'Theta', 'Lambda', 'Xi', 'Pi',
+        'Sigma', 'Upsilon', 'Phi', 'Psi', 'Omega',
+        'equation', 'align', 'align*', 'gather', 'multline', 'array', 'matrix', 'pmatrix',
+        'bmatrix', 'vmatrix', 'cases', 'substack', 'operatorname',
+        'theorem', 'lemma', 'proposition', 'corollary', 'definition', 'remark', 'proof',
+        'algorithm', 'algorithmic', 'Require', 'Ensure', 'State', 'While', 'If', 'Else',
+        'Return', 'Function', 'Procedure', 'Comment', 'KwData', 'KwResult', 'KwIn', 'KwOut',
+        'toprule', 'midrule', 'bottomrule', 'hline', 'cline', 'multirow', 'tabular',
+        'tabularx', 'booktabs', 'threeparttable', 'tablenotes',
+    }
+    # Pattern to match a LaTeX command: backslash + letters (optionally with star)
+    cmd_pattern = r'\\([a-zA-Z]+(?:\*)?)'
     
-    # 2. Fix \includegraphics{\fbox{...}} -> just \fbox{...}
-    content = re.sub(r'\\includegraphics\s*\{\s*\\fbox\s*\{[^}]*\}\s*\}', 
-                     lambda m: m.group(0).replace('\\includegraphics', '').strip('{}'), 
-                     content)
+    def replace_unknown_cmd(match):
+        cmd = match.group(1)
+        if cmd in safe_commands:
+            return match.group(0)  # keep it
+        else:
+            # Remove unknown command (including the backslash)
+            return ''
     
-    # 3. Remove entire tablenotes environments
+    content = re.sub(cmd_pattern, replace_unknown_cmd, content)
+    
+    # Remove figure environments (cause "Not in outer par mode" and missing files)
+    content = re.sub(r'\\begin\{figure\}.*?\\end\{figure\}', '', content, flags=re.DOTALL)
+    content = re.sub(r'\\begin\{figure\*\}.*?\\end\{figure\*\}', '', content, flags=re.DOTALL)
+    
+    # Keep table environments (do NOT remove)
+    # But remove \includegraphics inside tables or anywhere
+    content = re.sub(r'\\includegraphics\[.*?\]\{.*?\}', '', content)
+    content = re.sub(r'\\includegraphics\{.*?\}', '', content)
+    
+    # Remove empty or problematic \fbox, \rule (optional)
+    content = re.sub(r'\\fbox\{.*?\}', '', content)
+    
+    # Remove injection artifacts: \@XXXX and \ignorespaces
+    content = re.sub(r'\\@[A-Za-z]+', '', content)
+    content = re.sub(r'\\ignorespaces', '', content)
+    
+    # Remove tablenotes (already removed by environment removal? No, we keep tables but remove tablenotes if present)
     content = re.sub(r'\\begin\{tablenotes\}.*?\\end\{tablenotes\}', '', content, flags=re.DOTALL)
     
-    # 4. Convert theorem* and proof* to standard environments
+    # Convert theorem* and proof* to standard
     content = re.sub(r'\\begin\{theorem\*\}', r'\\begin{theorem}', content)
     content = re.sub(r'\\end\{theorem\*\}', r'\\end{theorem}', content)
     content = re.sub(r'\\begin\{proof\*\}', r'\\begin{proof}', content)
     content = re.sub(r'\\end\{proof\*\}', r'\\end{proof}', content)
     
-    # 5. Remove injection artifacts: \@XXXX (e.g., \@AIoverwrites) and stray \ignorespaces
-    content = re.sub(r'\\@[A-Za-z]+', '', content)
-    content = re.sub(r'\\ignorespaces', '', content)
-    
-    # 6. Remove any trailing \@... that might appear after braces
-    content = re.sub(r'\}\s*\\@[A-Za-z]+', '}', content)
-    
-    # 7. Reduce multiple closing braces to avoid brace mismatch
+    # Remove sequences of multiple closing braces
     content = re.sub(r'\}{3,}', '}}', content)
     
     return content
@@ -91,7 +131,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS (styling) ─────────────────────────────────────────────────────
+# ── Custom CSS (unchanged, omitted for brevity) ───────────────────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
