@@ -244,25 +244,40 @@ def build_main_tex(
 def wrap_section(section_key: str, content: str) -> str:
     """
     Wrap raw LLM output in a proper LaTeX section command if not already present.
-    Strips markdown fences that LLMs sometimes emit.
+    Strips markdown fences and removes any existing abstract/section wrappers
+    to prevent duplication.
     """
-    label   = SECTION_LABELS.get(section_key, section_key.capitalize())
+    label = SECTION_LABELS.get(section_key, section_key.capitalize())
     stripped = content.strip()
 
-    # Remove markdown code fences if LLM wrapped the output
+    # Remove markdown code fences
     if stripped.startswith("```"):
         lines = stripped.splitlines()
-        # drop first line (```latex or ```) and last line (```)
         inner = lines[1:] if lines[0].startswith("```") else lines
         if inner and inner[-1].strip() == "```":
             inner = inner[:-1]
         stripped = "\n".join(inner).strip()
 
-    # If content already has the correct LaTeX section command, return as-is
-    if stripped.startswith(("\\section", "\\begin{abstract}", "\\chapter", "\\section*")):
-        return stripped
-
+    # For abstract: remove any existing \begin{abstract}...\end{abstract}
     if section_key == "abstract":
+        # Remove all abstract environments
+        stripped = re.sub(r'\\begin\{abstract\}.*?\\end\{abstract\}', '', stripped, flags=re.DOTALL)
+        # Also remove any stray \section*{Abstract} or \section{Abstract}
+        stripped = re.sub(r'\\section\*?\{Abstract\}', '', stripped)
+        stripped = stripped.strip()
+        # Now wrap cleanly
         return f"\\begin{{abstract}}\n{stripped}\n\\end{{abstract}}"
+
+    # For other sections: remove any existing \section or \section* commands
+    # that match this section's label (case-insensitive)
+    pattern = r'\\section\*?\{' + re.escape(label) + r'\}'
+    stripped = re.sub(pattern, '', stripped, flags=re.IGNORECASE)
+    # Also remove any existing \label{sec:...} that might be orphaned
+    stripped = re.sub(r'\\label\{sec:[^}]+\}', '', stripped)
+    stripped = stripped.strip()
+
+    # If content is empty after stripping, return minimal placeholder
+    if not stripped:
+        stripped = "\\noindent (Content not generated.)"
 
     return f"\\section{{{label}}}\n\\label{{sec:{section_key}}}\n\n{stripped}"
