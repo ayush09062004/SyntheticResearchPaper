@@ -1,5 +1,4 @@
 """
-prompt_builder.py
 Constructs structured LLM prompts for each section of the research paper.
 Tailors formatting instructions to the selected conference/journal style.
 """
@@ -88,14 +87,13 @@ def build_abstract_prompt(topic: str, conference: str) -> list[dict]:
             "content": (
                 f"PAPER TOPIC: {topic}\n"
                 f"CONFERENCE STYLE: {conference}\n\n"
-                "TASK: Write the Abstract section (LaTeX).\n"
+                "TASK: Write the Abstract section content as plain LaTeX text (no \\begin{abstract}...\\end{abstract} wrapper).\n"
                 "REQUIREMENTS:\n"
                 "- Include: (1) background/context, (2) problem statement, (3) proposed approach,\n"
                 "  (4) key results (quantitative if possible), (5) broader implications.\n"
                 "- Length: 150–250 words.\n"
-                "- Use the abstract environment: \\begin{abstract} ... \\end{abstract}\n"
-                "- Do NOT use \\section*{Abstract}.\n"
-                "OUTPUT FORMAT: Only the LaTeX abstract environment – no extra text."
+                "- Do NOT include the abstract environment – just the paragraph text.\n"
+                "OUTPUT FORMAT: Only the LaTeX paragraph(s) – no extra text."
             ),
         },
     ]
@@ -117,8 +115,9 @@ def build_intro_prompt(topic: str, conference: str) -> list[dict]:
                 "  P3: our proposed approach and its novelty.\n"
                 "  P4: bullet list of contributions (use \\begin{itemize}).\n"
                 "  P5: outline of the paper's structure.\n"
-                "- Use \\section{Introduction} and \\label{sec:intro}.\n"
-                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
+                "- Do NOT include the \\section{Introduction} command – we will add it automatically.\n"
+                "- Do NOT include \\label{sec:intro}.\n"
+                "OUTPUT FORMAT: Only the LaTeX content (no section heading)."
             ),
         },
     ]
@@ -138,8 +137,9 @@ def build_related_work_prompt(topic: str, conference: str) -> list[dict]:
                 "- For each theme, discuss 3–5 representative papers, highlighting strengths and weaknesses.\n"
                 "- End with a paragraph identifying the research gap our work fills.\n"
                 "- Cite 10–15 works using \\cite{}.\n"
-                "- Use \\section{Related Work} and \\subsection{...} for each theme.\n"
-                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
+                "- Use \\subsection{...} for each theme (no \\section).\n"
+                "- Do NOT include the \\section{Related Work} command – we will add it automatically.\n"
+                "OUTPUT FORMAT: Only the LaTeX content (no section heading)."
             ),
         },
     ]
@@ -159,8 +159,9 @@ def build_methodology_prompt(topic: str, conference: str) -> list[dict]:
                 "- Provide mathematical formulations with numbered equations (\\begin{equation} ... \\end{equation}).\n"
                 "- Describe data preprocessing, loss functions, optimization algorithms, hyperparameters.\n"
                 "- If applicable, include pseudocode using algorithmicx or algorithm2e.\n"
-                "- Use \\section{Methodology} and \\label{sec:method}.\n"
-                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
+                "- Use \\subsection{...} for each part.\n"
+                "- Do NOT include the \\section{Methodology} command – we will add it automatically.\n"
+                "OUTPUT FORMAT: Only the LaTeX content (no section heading)."
             ),
         },
     ]
@@ -183,8 +184,8 @@ def build_experiments_prompt(topic: str, conference: str) -> list[dict]:
                 "  (5) Main results – present a table (\\begin{table}[t] \\centering \\caption{...} \\label{tab:main} ... \\end{table})\n"
                 "      comparing your method to baselines. Include error bars or confidence intervals.\n"
                 "  (6) Reference to a figure (\\ref{fig:results}) that visualizes key trends.\n"
-                "- Use \\section{Experiments} and \\label{sec:experiments}.\n"
-                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
+                "- Do NOT include the \\section{Experiments} command – we will add it automatically.\n"
+                "OUTPUT FORMAT: Only the LaTeX content (no section heading)."
             ),
         },
     ]
@@ -204,8 +205,8 @@ def build_results_prompt(topic: str, conference: str) -> list[dict]:
                 "- (b) Ablation studies – systematically remove components to show impact (include second table/figure).\n"
                 "- (c) Qualitative analysis – show examples (visualisations, case studies) and discuss failure cases.\n"
                 "- (d) Limitations – acknowledge assumptions, scope, weaknesses.\n"
-                "- Use \\section{Results and Discussion} and \\label{sec:results}.\n"
-                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
+                "- Do NOT include the \\section{Results and Discussion} command – we will add it automatically.\n"
+                "OUTPUT FORMAT: Only the LaTeX content (no section heading)."
             ),
         },
     ]
@@ -226,8 +227,8 @@ def build_conclusion_prompt(topic: str, conference: str) -> list[dict]:
                 "- Clearly state 2–3 concrete limitations.\n"
                 "- Propose 2–3 specific directions for future work.\n"
                 "- Do NOT introduce new results or figures.\n"
-                "- Use \\section{Conclusion} and \\label{sec:conclusion}.\n"
-                "OUTPUT FORMAT: Only the LaTeX section content – no extra text."
+                "- Do NOT include the \\section{Conclusion} command – we will add it automatically.\n"
+                "OUTPUT FORMAT: Only the LaTeX content (no section heading)."
             ),
         },
     ]
