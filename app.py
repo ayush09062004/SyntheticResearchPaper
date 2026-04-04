@@ -49,9 +49,11 @@ def normalize_citations(content: str, valid_keys: list[str]) -> str:
 
 def sanitize_latex(content: str) -> str:
     """
-    Remove or fix common LaTeX errors that break compilation.
+    Aggressively remove or fix common LaTeX errors that break compilation.
+    Handles empty includegraphics, malformed fbox, tablenotes, theorem*,
+    and injection artifacts like \@AIoverwrites, \ignorespaces, etc.
     """
-    # 1. Remove empty \includegraphics{} completely (with surrounding whitespace)
+    # 1. Remove empty \includegraphics{} completely
     content = re.sub(r'\s*\\includegraphics\s*\{\s*\}\s*', '', content)
     
     # 2. Fix \includegraphics{\fbox{...}} -> just \fbox{...}
@@ -59,14 +61,24 @@ def sanitize_latex(content: str) -> str:
                      lambda m: m.group(0).replace('\\includegraphics', '').strip('{}'), 
                      content)
     
-    # 3. Remove entire tablenotes environments (requires threeparttable)
+    # 3. Remove entire tablenotes environments
     content = re.sub(r'\\begin\{tablenotes\}.*?\\end\{tablenotes\}', '', content, flags=re.DOTALL)
     
-    # 4. Replace theorem* and proof* with standard theorem/proof (amsthm)
+    # 4. Convert theorem* and proof* to standard environments
     content = re.sub(r'\\begin\{theorem\*\}', r'\\begin{theorem}', content)
     content = re.sub(r'\\end\{theorem\*\}', r'\\end{theorem}', content)
     content = re.sub(r'\\begin\{proof\*\}', r'\\begin{proof}', content)
     content = re.sub(r'\\end\{proof\*\}', r'\\end{proof}', content)
+    
+    # 5. Remove injection artifacts: \@XXXX (e.g., \@AIoverwrites) and stray \ignorespaces
+    content = re.sub(r'\\@[A-Za-z]+', '', content)          # remove \@Something
+    content = re.sub(r'\\ignorespaces', '', content)        # remove \ignorespaces
+    
+    # 6. Remove any trailing \@... that might appear after braces
+    content = re.sub(r'\}\s*\\@[A-Za-z]+', '}', content)
+    
+    # 7. Remove sequences like }}} that might cause brace mismatch (optional)
+    content = re.sub(r'\}{3,}', '}}', content)
     
     return content
 
@@ -79,7 +91,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS ────────────────────────────────────────────────────────────────
+# ── Custom CSS (unchanged) ────────────────────────────────────────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
