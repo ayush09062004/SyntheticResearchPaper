@@ -2,16 +2,23 @@
 Assembles the final main.tex with correct document class and package
 declarations for each supported conference/journal style.
 
-IMPORTANT: All preambles use ONLY standard LaTeX packages universally
-available in TeX Live / MiKTeX / Overleaf WITHOUT uploading extra .sty files.
-Visual styling approximates each venue's look via geometry, fancyhdr, titlesec,
-multicol, etc. — all bundled with every standard LaTeX distribution.
+FIXES:
+- Removed 'comment' package (conflicts with injection engine's LaTeX comments)
+- Removed 'lineno' / 'linenumbers' from Elsevier (causes compile failures)
+- Fixed fancyhead/fancyfoot definitions placed on same line (invalid LaTeX)
+- Fixed MakeUppercase misuse inside titleformat
+- Added hyperref with colorlinks to suppress coloured boxes
+- wrap_section: only strips top-level section cmd, preserves subsection
+- wrap_section: properly handles abstract (no section wrapper)
+- wrap_section: more robust markdown fence stripping
+- build_main_tex: correct sections/<n> path in input
+- _title_block: escapes LaTeX special chars in topic string
 """
 
 import re
 
 # --------------------------------------------------------------------------
-# Shared base packages (always safe, always available in TeX Live)
+# Shared base packages
 # --------------------------------------------------------------------------
 _BASE = r"""
 \usepackage{amsmath,amssymb,amsthm}
@@ -19,7 +26,7 @@ _BASE = r"""
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{microtype}
-\usepackage{hyperref}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{natbib}
 \usepackage{url}
 \usepackage{caption}
@@ -31,7 +38,6 @@ _BASE = r"""
 \usepackage{tabularx}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
-\usepackage{comment}         
 """
 
 _THEOREMS = r"""
@@ -53,10 +59,12 @@ PREAMBLES = {
         r"\usepackage[top=0.75in,bottom=1in,left=0.625in,right=0.625in,columnsep=0.25in]{geometry}" "\n"
         r"\usepackage{times}" "\n"
         + _BASE + _THEOREMS +
-        r"\titleformat{\section}{\normalsize\bfseries\centering}{\Roman{section}.}{0.5em}{\MakeUppercase}" "\n"
+        r"\titleformat{\section}{\normalsize\bfseries\centering}{\Roman{section}.}{0.5em}{}" "\n"
         r"\titleformat{\subsection}{\normalsize\itshape}{\Alph{subsection}.}{0.5em}{}" "\n"
-        r"\pagestyle{fancy}\fancyhf{}" "\n"
-        r"\fancyhead[C]{\small IEEE Transactions --- Preprint}\fancyfoot[C]{\thepage}" "\n"
+        r"\pagestyle{fancy}" "\n"
+        r"\fancyhf{}" "\n"
+        r"\fancyhead[C]{\small IEEE Transactions --- Preprint}" "\n"
+        r"\fancyfoot[C]{\thepage}" "\n"
         r"\renewcommand{\headrulewidth}{0.4pt}" "\n"
     ),
 
@@ -67,8 +75,10 @@ PREAMBLES = {
         + _BASE + _THEOREMS +
         r"\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}" "\n"
         r"\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}" "\n"
-        r"\pagestyle{fancy}\fancyhf{}" "\n"
-        r"\fancyhead[R]{\small Preprint --- NeurIPS Style}\fancyfoot[C]{\thepage}" "\n"
+        r"\pagestyle{fancy}" "\n"
+        r"\fancyhf{}" "\n"
+        r"\fancyhead[R]{\small Preprint --- NeurIPS Style}" "\n"
+        r"\fancyfoot[C]{\thepage}" "\n"
         r"\renewcommand{\headrulewidth}{0.4pt}" "\n"
     ),
 
@@ -77,10 +87,12 @@ PREAMBLES = {
         r"\usepackage[top=1in,bottom=1in,left=0.75in,right=0.75in,columnsep=0.3in]{geometry}" "\n"
         r"\usepackage{times}" "\n"
         + _BASE + _THEOREMS +
-        r"\titleformat{\section}{\normalsize\bfseries}{\thesection}{1em}{\MakeUppercase}" "\n"
+        r"\titleformat{\section}{\normalsize\bfseries}{\thesection}{1em}{}" "\n"
         r"\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}" "\n"
-        r"\pagestyle{fancy}\fancyhf{}" "\n"
-        r"\fancyhead[C]{\small ACL Style --- Preprint}\fancyfoot[C]{\thepage}" "\n"
+        r"\pagestyle{fancy}" "\n"
+        r"\fancyhf{}" "\n"
+        r"\fancyhead[C]{\small ACL Style --- Preprint}" "\n"
+        r"\fancyfoot[C]{\thepage}" "\n"
         r"\renewcommand{\headrulewidth}{0.4pt}" "\n"
     ),
 
@@ -91,8 +103,10 @@ PREAMBLES = {
         + _BASE + _THEOREMS +
         r"\titleformat{\section}{\large\bfseries\centering}{\thesection}{0.5em}{}" "\n"
         r"\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}" "\n"
-        r"\pagestyle{fancy}\fancyhf{}" "\n"
-        r"\fancyhead[C]{\small CVPR Style --- Preprint}\fancyfoot[C]{\thepage}" "\n"
+        r"\pagestyle{fancy}" "\n"
+        r"\fancyhf{}" "\n"
+        r"\fancyhead[C]{\small CVPR Style --- Preprint}" "\n"
+        r"\fancyfoot[C]{\thepage}" "\n"
         r"\renewcommand{\headrulewidth}{0.4pt}" "\n"
     ),
 
@@ -103,8 +117,10 @@ PREAMBLES = {
         + _BASE + _THEOREMS +
         r"\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}" "\n"
         r"\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}" "\n"
-        r"\pagestyle{fancy}\fancyhf{}" "\n"
-        r"\fancyhead[R]{\small ICML Style --- Preprint}\fancyfoot[C]{\thepage}" "\n"
+        r"\pagestyle{fancy}" "\n"
+        r"\fancyhf{}" "\n"
+        r"\fancyhead[R]{\small ICML Style --- Preprint}" "\n"
+        r"\fancyfoot[C]{\thepage}" "\n"
         r"\renewcommand{\headrulewidth}{0.4pt}" "\n"
     ),
 
@@ -115,8 +131,10 @@ PREAMBLES = {
         + _BASE + _THEOREMS +
         r"\titleformat{\section}{\bfseries}{\thesection}{1em}{}" "\n"
         r"\titleformat{\subsection}{\itshape}{\thesubsection}{1em}{}" "\n"
-        r"\pagestyle{fancy}\fancyhf{}" "\n"
-        r"\fancyhead[LE,RO]{\thepage}\fancyhead[LO]{\small Springer LNCS Style}" "\n"
+        r"\pagestyle{fancy}" "\n"
+        r"\fancyhf{}" "\n"
+        r"\fancyhead[LE,RO]{\thepage}" "\n"
+        r"\fancyhead[LO]{\small Springer LNCS Style}" "\n"
         r"\renewcommand{\headrulewidth}{0pt}" "\n"
     ),
 
@@ -124,13 +142,14 @@ PREAMBLES = {
         r"\documentclass[12pt,a4paper]{article}" "\n"
         r"\usepackage[top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm]{geometry}" "\n"
         + _BASE + _THEOREMS +
-        r"\usepackage{lineno}" "\n"
         r"\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}" "\n"
         r"\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}" "\n"
-        r"\pagestyle{fancy}\fancyhf{}" "\n"
-        r"\fancyhead[L]{\small Elsevier Journal Style}\fancyhead[R]{\small Preprint}" "\n"
-        r"\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0.4pt}" "\n"
-        r"\linenumbers" "\n"
+        r"\pagestyle{fancy}" "\n"
+        r"\fancyhf{}" "\n"
+        r"\fancyhead[L]{\small Elsevier Journal Style}" "\n"
+        r"\fancyhead[R]{\small Preprint}" "\n"
+        r"\fancyfoot[C]{\thepage}" "\n"
+        r"\renewcommand{\headrulewidth}{0.4pt}" "\n"
     ),
 
     "Nature-style": (
@@ -138,10 +157,12 @@ PREAMBLES = {
         r"\usepackage[top=2cm,bottom=2cm,left=2cm,right=2cm]{geometry}" "\n"
         r"\usepackage{times}" "\n"
         + _BASE + _THEOREMS +
-        r"\titleformat{\section}{\normalsize\bfseries}{}{0em}{\MakeUppercase}" "\n"
+        r"\titleformat{\section}{\normalsize\bfseries}{}{0em}{}" "\n"
         r"\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}" "\n"
-        r"\pagestyle{fancy}\fancyhf{}" "\n"
-        r"\fancyhead[C]{\small Nature Style --- Preprint}\fancyfoot[C]{\thepage}" "\n"
+        r"\pagestyle{fancy}" "\n"
+        r"\fancyhf{}" "\n"
+        r"\fancyhead[C]{\small Nature Style --- Preprint}" "\n"
+        r"\fancyfoot[C]{\thepage}" "\n"
         r"\renewcommand{\headrulewidth}{0.4pt}" "\n"
     ),
 
@@ -151,13 +172,14 @@ PREAMBLES = {
         + _BASE + _THEOREMS +
         r"\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}" "\n"
         r"\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}" "\n"
-        r"\pagestyle{fancy}\fancyhf{}" "\n"
-        r"\fancyhead[R]{\small Custom Academic Style}\fancyfoot[C]{\thepage}" "\n"
+        r"\pagestyle{fancy}" "\n"
+        r"\fancyhf{}" "\n"
+        r"\fancyhead[R]{\small Custom Academic Style}" "\n"
+        r"\fancyfoot[C]{\thepage}" "\n"
         r"\renewcommand{\headrulewidth}{0.4pt}" "\n"
     ),
 }
 
-# All styles use standard natbib-compatible bib styles (included in TeX Live base)
 BIB_STYLES = {
     "IEEE":         "unsrt",
     "NeurIPS":      "abbrvnat",
@@ -181,18 +203,22 @@ SECTION_LABELS = {
 }
 
 # --------------------------------------------------------------------------
-# Title block — standard article commands ONLY (no class-specific macros)
+# Title block
 # --------------------------------------------------------------------------
 
 def _title_block(topic: str, conference: str) -> str:
-    """
-    Build \title / \author / \maketitle block using only standard LaTeX.
-    No \IEEEauthorblockN, \institute, \email, \frontmatter, etc.
-    """
-    safe = topic.replace("\\", "").replace("{", "(").replace("}", ")")
-    full_title = safe
+    """Build title/author/maketitle block using only standard LaTeX commands."""
+    # Escape LaTeX special characters
+    safe = topic
+    for ch, repl in [
+        ("\\", ""),
+        ("{", "("), ("}", ")"),
+        ("_", r"\_"), ("&", r"\&"),
+        ("#", r"\#"), ("%", r"\%"), ("$", r"\$"),
+    ]:
+        safe = safe.replace(ch, repl)
     return (
-        f"\\title{{{full_title}}}\n"
+        f"\\title{{{safe}}}\n"
         "\\author{Anonymous Author(s) \\\\\n"
         "\\small Department of Computer Science, University of Research \\\\\n"
         "\\small \\texttt{anonymous@university.edu}}\n"
@@ -213,10 +239,10 @@ def build_main_tex(
     optional_inputs: list = None,
 ) -> str:
     """Assemble the complete main.tex file."""
-    preamble   = PREAMBLES.get(conference, PREAMBLES["Custom"])
-    bib_style  = BIB_STYLES.get(conference, "plain")
-    title_blk  = _title_block(topic, conference)
-    opt        = optional_inputs or []
+    preamble  = PREAMBLES.get(conference, PREAMBLES["Custom"])
+    bib_style = BIB_STYLES.get(conference, "plain")
+    title_blk = _title_block(topic, conference)
+    opt       = optional_inputs or []
 
     section_includes = "\n".join(
         f"\\input{{sections/{f}}}" for f in section_files
@@ -245,47 +271,52 @@ def build_main_tex(
 def wrap_section(section_key: str, content: str) -> str:
     """
     Wrap raw LLM output in a proper LaTeX section command.
-    Removes markdown fences, existing LaTeX section commands, plain‑text headings,
-    and markdown headings to prevent duplication.
+
+    Key fixes vs original:
+    - Only strips top-level \\section{} — keeps \\subsection/\\subsubsection.
+    - More robust markdown-fence stripping (handles ```latex variant).
+    - Abstract: unwraps any accidental abstract env, returns bare abstract env.
+    - Normalises excessive blank lines.
     """
-    label = SECTION_LABELS.get(section_key, section_key.capitalize())
+    label   = SECTION_LABELS.get(section_key, section_key.capitalize())
     stripped = content.strip()
 
-    # 1. Remove markdown code fences
-    if stripped.startswith("```"):
-        lines = stripped.splitlines()
-        inner = lines[1:] if lines[0].startswith("```") else lines
-        if inner and inner[-1].strip() == "```":
-            inner = inner[:-1]
-        stripped = "\n".join(inner).strip()
+    # 1. Remove markdown code fences (```latex...``` or ```...```)
+    stripped = re.sub(r'^```[a-zA-Z]*\s*', '', stripped)
+    stripped = re.sub(r'\s*```$', '', stripped)
+    stripped = stripped.strip()
 
-    # 2. Remove any existing LaTeX section commands and labels
-    #    This prevents duplicate section headings
-    stripped = re.sub(r'\\section(\*)?\{[^}]*\}', '', stripped)
-    stripped = re.sub(r'\\subsection(\*)?\{[^}]*\}', '', stripped)
-    stripped = re.sub(r'\\subsubsection(\*)?\{[^}]*\}', '', stripped)
+    # 2. Remove ONLY top-level \section{...} / \section*{...}
+    stripped = re.sub(r'\\section\*?\{[^}]*\}', '', stripped)
+
+    # 3. Remove top-level \label{sec:...} (we add our own)
     stripped = re.sub(r'\\label\{sec:[^}]+\}', '', stripped)
 
-    # 3. Remove abstract environment if present (should not be, but just in case)
+    # 4. If abstract: strip any existing abstract environment wrapper
     if section_key == "abstract":
-        stripped = re.sub(r'\\begin\{abstract\}.*?\\end\{abstract\}', '', stripped, flags=re.DOTALL)
+        stripped = re.sub(
+            r'\\begin\{abstract\}(.*?)\\end\{abstract\}',
+            lambda m: m.group(1).strip(),
+            stripped,
+            flags=re.DOTALL,
+        )
 
-    # 4. Remove markdown headings (lines that start with # and a space)
+    # 5. Remove markdown headings (# Heading)
     stripped = re.sub(r'^\s*#{1,6}\s+.*$', '', stripped, flags=re.MULTILINE)
 
-    # 5. Remove plain‑text headings (e.g., "ABSTRACT", "Introduction", "Related Work")
-    #    Case‑insensitive, optional colon, entire line.
+    # 6. Remove bare plain-text heading lines matching this section label
     heading_pattern = r'^\s*' + re.escape(label) + r'\s*:?\s*$'
     stripped = re.sub(heading_pattern, '', stripped, flags=re.MULTILINE | re.IGNORECASE)
 
-    # 6. Strip again to clean up extra blank lines
+    # 7. Collapse 3+ consecutive newlines → double newline
+    stripped = re.sub(r'\n{3,}', '\n\n', stripped)
     stripped = stripped.strip()
 
-    # 7. If content is empty, provide a placeholder
+    # 8. Placeholder for empty content
     if not stripped:
         stripped = "\\noindent (Content not generated.)"
 
-    # 8. Wrap in the proper LaTeX environment/command
+    # 9. Wrap appropriately
     if section_key == "abstract":
         return f"\\begin{{abstract}}\n{stripped}\n\\end{{abstract}}"
     else:
