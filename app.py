@@ -26,7 +26,7 @@ from utils.groq_client import GroqClientManager
 from utils.zip_export import build_zip, build_readme
 
 
-# ── Helper functions for citation handling ────────────────────────────────────
+# ── Helper functions for citation handling and LaTeX sanitisation ────────────
 def extract_bibtex_keys(bibtex: str) -> list[str]:
     """Extract citation keys from a BibTeX string."""
     return re.findall(r'@\w+\{([^,]+),', bibtex)
@@ -71,13 +71,13 @@ def sanitize_latex(content: str) -> str:
     content = re.sub(r'\\end\{proof\*\}', r'\\end{proof}', content)
     
     # 5. Remove injection artifacts: \@XXXX (e.g., \@AIoverwrites) and stray \ignorespaces
-    content = re.sub(r'\\@[A-Za-z]+', '', content)          # remove \@Something
-    content = re.sub(r'\\ignorespaces', '', content)        # remove \ignorespaces
+    content = re.sub(r'\\@[A-Za-z]+', '', content)
+    content = re.sub(r'\\ignorespaces', '', content)
     
     # 6. Remove any trailing \@... that might appear after braces
     content = re.sub(r'\}\s*\\@[A-Za-z]+', '}', content)
     
-    # 7. Remove sequences like }}} that might cause brace mismatch (optional)
+    # 7. Reduce multiple closing braces to avoid brace mismatch
     content = re.sub(r'\}{3,}', '}}', content)
     
     return content
@@ -91,7 +91,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS (unchanged) ────────────────────────────────────────────────────
+# ── Custom CSS (styling) ─────────────────────────────────────────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
@@ -207,10 +207,7 @@ with st.sidebar:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MAIN CONTENT
-# ══════════════════════════════════════════════════════════════════════════════
-# ══════════════════════════════════════════════════════════════════════════════
-# MAIN CONTENT
+# MAIN CONTENT AREA
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('<div class="hero-title">LaTeX Injector Lab</div>', unsafe_allow_html=True)
 st.markdown(
@@ -240,7 +237,7 @@ with col_reports:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SESSION STATE INITIALIZATION
+# SESSION STATE INITIALISATION
 # ══════════════════════════════════════════════════════════════════════════════
 if 'generation_running' not in st.session_state:
     st.session_state.generation_running = False
@@ -249,7 +246,7 @@ if 'generation_complete' not in st.session_state:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HANDLE GENERATE BUTTON (FIRST)
+# HANDLE GENERATE BUTTON (NEW PAPER)
 # ══════════════════════════════════════════════════════════════════════════════
 if generate_btn:
     # Prevent duplicate runs
@@ -257,7 +254,7 @@ if generate_btn:
         st.warning("⏳ Generation is already in progress. Please wait...")
         st.stop()
     
-    # Clear previous cached results if any
+    # Clear previous cached results
     st.session_state.generation_complete = False
     st.session_state.generation_running = True
 
@@ -273,7 +270,7 @@ if generate_btn:
         st.session_state.generation_running = False
         st.stop()
 
-    # Validate injection/hallucination selections (if not auto mode)
+    # Fallback for empty injection/hallucination selections
     if not auto_mode:
         if not inj_strategies and not inj_sources and not inj_modalities and not hall_types:
             st.warning("No injection or hallucination types selected. Enabling auto mode for this run.")
@@ -298,7 +295,7 @@ if generate_btn:
         injection_engine.set_client(client_mgr, topic, model)
         hallucination_engine.set_client(client_mgr, topic, model)
 
-        # ── Generate References FIRST ─────────────────────────────────────────
+        # ── Generate References FIRST (so we have citation keys) ──────────────
         status_container.markdown(
             '<div class="section-label">⏳ Generating: <b>REFERENCES (BibTeX)</b></div>',
             unsafe_allow_html=True,
@@ -318,7 +315,7 @@ if generate_btn:
         # ── Section generation ───────────────────────────────────────────────
         sections_order = ["abstract", "intro", "related", "method", "experiments", "results", "conclusion"]
         generated_sections: dict[str, str] = {}
-        total_steps = len(sections_order) + 4
+        total_steps = len(sections_order) + 4  # references, sections, injections, hallucinations, assembly
 
         for i, section_key in enumerate(sections_order):
             status_container.markdown(
@@ -331,6 +328,7 @@ if generate_btn:
             prompt_fn = SECTION_PROMPTS[section_key]
             messages = prompt_fn(topic, conference)
 
+            # Inject citation keys into the user prompt
             if citation_keys:
                 keys_str = ", ".join(citation_keys)
                 user_msg = messages[-1]["content"]
@@ -344,13 +342,14 @@ if generate_btn:
                 temperature=0.75,
             )
 
+            # Fix citations immediately
             if citation_keys:
                 raw = normalize_citations(raw, citation_keys)
 
             generated_sections[section_key] = wrap_section(section_key, raw)
-            time.sleep(0.3)
+            time.sleep(0.3)  # polite delay between API calls
 
-        # ── Apply injections ─────────────────────────────────────────────────
+        # ── Apply injections ──────────────────────────────────────────────────
         status_container.markdown(
             '<div class="section-label">💉 Generating LLM Injection Patterns...</div>',
             unsafe_allow_html=True,
@@ -358,14 +357,14 @@ if generate_btn:
         generated_sections = injection_engine.inject_sections(generated_sections)
         external_files = injection_engine.get_external_files()
 
-        # ── Apply hallucinations ─────────────────────────────────────────────
+        # ── Apply hallucinations ──────────────────────────────────────────────
         status_container.markdown(
             '<div class="section-label">🧠 Generating LLM Hallucination Patterns...</div>',
             unsafe_allow_html=True,
         )
         generated_sections = hallucination_engine.inject_sections(generated_sections)
 
-        # ── Final sanitisation ───────────────────────────────────────────────
+        # ── Final sanitisation: citations + LaTeX fixes ───────────────────────
         for sec_key in sections_order:
             generated_sections[sec_key] = normalize_citations(generated_sections[sec_key], citation_keys)
             generated_sections[sec_key] = sanitize_latex(generated_sections[sec_key])
@@ -391,7 +390,7 @@ if generate_btn:
             optional_inputs=optional_file_names,
         )
 
-        # ── Reports ──────────────────────────────────────────────────────────
+        # ── Reports ───────────────────────────────────────────────────────────
         injection_report = injection_engine.get_report()
         hallucination_report = hallucination_engine.get_report()
 
@@ -402,7 +401,7 @@ if generate_btn:
             hallucination_report=hallucination_report,
         )
 
-        # ── Build ZIP ────────────────────────────────────────────────────────
+        # ── Build ZIP ─────────────────────────────────────────────────────────
         sections_for_zip = {k: generated_sections[k] for k in sections_order}
 
         zip_bytes = build_zip(
@@ -419,7 +418,7 @@ if generate_btn:
             unsafe_allow_html=True,
         )
 
-        # ── Store everything in session state ────────────────────────────────
+        # ── Store everything in session state for future reruns ────────────────
         st.session_state.generation_complete = True
         st.session_state.zip_bytes = zip_bytes
         st.session_state.main_tex = main_tex
@@ -511,10 +510,12 @@ if generate_btn:
     finally:
         st.session_state.generation_running = False
 
-# ── If NOT generating, show cached results if available, else idle state ─────
+# ══════════════════════════════════════════════════════════════════════════════
+# ELSE: SHOW CACHED RESULTS IF AVAILABLE, OTHERWISE IDLE STATE
+# ══════════════════════════════════════════════════════════════════════════════
 else:
     if st.session_state.generation_complete and 'zip_bytes' in st.session_state:
-        # Display cached results
+        # Display cached results from a previous generation
         with preview_container:
             st.markdown("---")
             st.markdown('<div class="section-label">📄 Previously Generated Content</div>', unsafe_allow_html=True)
@@ -569,7 +570,7 @@ else:
             c2.metric("Hallucinations", len(st.session_state.hallucination_report))
             c3.metric("Sections", len(st.session_state.sections_order))
     else:
-        # Idle state (no cached results)
+        # ── Idle state: show help and information ─────────────────────────────
         with col_main:
             st.markdown("""
             <div class="card">
