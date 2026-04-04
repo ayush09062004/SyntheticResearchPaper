@@ -84,6 +84,7 @@ def _contextual_prompt(topic: str, section_key: str, section_snippet: str) -> li
             "- Suggest the paper's conclusions are inevitable or unquestionable.\n"
             "- Use hedged language (e.g., 'It is widely acknowledged...', 'As recent work confirms...').\n"
             "- Be specific to the paper topic.\n"
+            "- Do NOT use LaTeX \\cite commands – write any citations as plain text.\n"
             "No exotic LaTeX commands — plain paragraph text.\n"
             "OUTPUT FORMAT: Only the paragraph – no extra text."
         )},
@@ -101,6 +102,7 @@ def _chained_part1_prompt(topic: str, section_key: str, section_snippet: str) ->
             "EXAMPLE: 'As will be demonstrated in Section~\\ref{sec:results}, all competing "
             "approaches are fundamentally flawed for this domain.'\n"
             "Make it topic-specific and academically plausible.\n"
+            "Do NOT use \\cite commands – write any citations as plain text.\n"
             "OUTPUT FORMAT: Only the LaTeX sentence(s) – no extra text."
         )},
     ]
