@@ -55,139 +55,29 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS ────────────────────────────────────────────────────────────────
+# ── Custom CSS (unchanged, omitted for brevity) ───────────────────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
-
-  html, body, [class*="css"] {
-    font-family: 'Syne', sans-serif;
-  }
-
+  html, body, [class*="css"] { font-family: 'Syne', sans-serif; }
   .stApp { background: #0a0a0f; color: #e8e8f0; }
-
-  /* Sidebar */
-  [data-testid="stSidebar"] {
-    background: #0f0f1a !important;
-    border-right: 1px solid #1e1e3a;
-  }
-
-  /* Cards */
-  .card {
-    background: #12121f;
-    border: 1px solid #1e1e3a;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-  }
-
-  /* Labels */
-  .badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-right: 6px;
-    margin-bottom: 4px;
-  }
+  [data-testid="stSidebar"] { background: #0f0f1a !important; border-right: 1px solid #1e1e3a; }
+  .card { background: #12121f; border: 1px solid #1e1e3a; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-right: 6px; margin-bottom: 4px; }
   .badge-high   { background: #3d1010; color: #ff6b6b; border: 1px solid #ff6b6b44; }
   .badge-medium { background: #3d2e10; color: #ffa94d; border: 1px solid #ffa94d44; }
   .badge-low    { background: #1a3020; color: #69db7c; border: 1px solid #69db7c44; }
   .badge-type   { background: #1a1a3d; color: #74b9ff; border: 1px solid #74b9ff44; }
-
-  /* Report table */
-  .report-row {
-    display: flex;
-    gap: 1rem;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid #1e1e3a;
-    font-size: 0.85rem;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .report-row:last-child { border-bottom: none; }
-
-  /* Header */
-  .hero-title {
-    font-size: 2.8rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.2rem;
-  }
-  .hero-sub {
-    color: #6b6b8a;
-    font-size: 0.95rem;
-    margin-bottom: 2rem;
-  }
-
-  /* Progress section headers */
-  .section-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    color: #a78bfa;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    margin-bottom: 0.4rem;
-  }
-
-  /* Buttons */
-  .stButton > button {
-    background: linear-gradient(135deg, #7c3aed, #2563eb) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-family: 'Syne', sans-serif !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.05em !important;
-    padding: 0.6rem 2rem !important;
-    transition: opacity 0.2s !important;
-  }
+  .hero-title { font-size: 2.8rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.2rem; }
+  .hero-sub { color: #6b6b8a; font-size: 0.95rem; margin-bottom: 2rem; }
+  .section-label { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.4rem; }
+  .stButton > button { background: linear-gradient(135deg, #7c3aed, #2563eb) !important; color: white !important; border: none !important; border-radius: 8px !important; font-family: 'Syne', sans-serif !important; font-weight: 700 !important; letter-spacing: 0.05em !important; padding: 0.6rem 2rem !important; transition: opacity 0.2s !important; }
   .stButton > button:hover { opacity: 0.85 !important; }
-
-  /* Download button */
-  .stDownloadButton > button {
-    background: linear-gradient(135deg, #065f46, #064e3b) !important;
-    color: #34d399 !important;
-    border: 1px solid #34d39944 !important;
-    border-radius: 8px !important;
-    font-family: 'Syne', sans-serif !important;
-    font-weight: 700 !important;
-  }
-
-  /* Inputs */
-  .stTextInput input, .stTextArea textarea, .stSelectbox select {
-    background: #0f0f1a !important;
-    border: 1px solid #1e1e3a !important;
-    color: #e8e8f0 !important;
-    border-radius: 8px !important;
-    font-family: 'JetBrains Mono', monospace !important;
-  }
-
-  /* Multiselect */
-  .stMultiSelect [data-baseweb="tag"] {
-    background-color: #1a1a3d !important;
-    color: #a78bfa !important;
-  }
-
-  /* Expander */
-  .streamlit-expanderHeader {
-    background: #12121f !important;
-    border: 1px solid #1e1e3a !important;
-    border-radius: 8px !important;
-    color: #e8e8f0 !important;
-    font-family: 'Syne', sans-serif !important;
-    font-weight: 700 !important;
-  }
-
-  /* Code blocks */
+  .stDownloadButton > button { background: linear-gradient(135deg, #065f46, #064e3b) !important; color: #34d399 !important; border: 1px solid #34d39944 !important; border-radius: 8px !important; font-family: 'Syne', sans-serif !important; font-weight: 700 !important; }
+  .stTextInput input, .stTextArea textarea, .stSelectbox select { background: #0f0f1a !important; border: 1px solid #1e1e3a !important; color: #e8e8f0 !important; border-radius: 8px !important; font-family: 'JetBrains Mono', monospace !important; }
+  .stMultiSelect [data-baseweb="tag"] { background-color: #1a1a3d !important; color: #a78bfa !important; }
+  .streamlit-expanderHeader { background: #12121f !important; border: 1px solid #1e1e3a !important; border-radius: 8px !important; color: #e8e8f0 !important; font-family: 'Syne', sans-serif !important; font-weight: 700 !important; }
   .stCode { border-radius: 8px !important; }
-
-  /* Warning / info */
   .stAlert { border-radius: 8px !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -311,18 +201,99 @@ with col_reports:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# GENERATION LOGIC
+# SESSION STATE INITIALIZATION (prevents duplicate runs)
+# ══════════════════════════════════════════════════════════════════════════════
+if 'generation_running' not in st.session_state:
+    st.session_state.generation_running = False
+if 'generation_complete' not in st.session_state:
+    st.session_state.generation_complete = False
+
+# ── If generation was complete in a previous run, show results immediately ───
+if st.session_state.generation_complete and 'zip_bytes' in st.session_state:
+    # Display cached results without regenerating
+    with preview_container:
+        st.markdown("---")
+        st.markdown('<div class="section-label">📄 Previously Generated Content</div>', unsafe_allow_html=True)
+        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"synthetic_paper_{conference.lower()}_{ts}.zip"
+        st.download_button(
+            label="⬇️ Download ZIP Archive",
+            data=st.session_state.zip_bytes,
+            file_name=filename,
+            mime="application/zip",
+            use_container_width=True,
+        )
+        # Preview tabs (using cached data)
+        tab_names = ["main.tex", "Abstract", "Introduction", "Method", "References (bib)", "README"]
+        tabs = st.tabs(tab_names)
+        with tabs[0]:
+            st.code(st.session_state.main_tex, language="latex")
+        with tabs[1]:
+            st.code(st.session_state.generated_sections.get("abstract", ""), language="latex")
+        with tabs[2]:
+            st.code(st.session_state.generated_sections.get("intro", ""), language="latex")
+        with tabs[3]:
+            st.code(st.session_state.generated_sections.get("method", ""), language="latex")
+        with tabs[4]:
+            st.code(st.session_state.references_bib, language="bibtex")
+        with tabs[5]:
+            st.code(st.session_state.readme_txt, language="text")
+
+    with report_container.container():
+        st.markdown("### 💉 Injection Report")
+        for item in st.session_state.injection_report:
+            sev = item.get("severity", "").lower()
+            badge_cls = "badge-high" if "high" in sev else ("badge-medium" if "medium" in sev else "badge-low")
+            with st.expander(f"[{item['type']}] → {item['location']}", expanded=False):
+                st.markdown(f'<span class="badge badge-type">{item["type"]}</span><span class="badge {badge_cls}">{item["severity"]}</span>', unsafe_allow_html=True)
+                st.markdown(f"**Source:** `{item['source']}`")
+                st.markdown(f"**Modality:** `{item['modality']}`")
+                st.markdown(f"**Location:** `{item['location']}`")
+                st.code(item.get("snippet", "")[:300], language="latex")
+        st.markdown("---")
+        st.markdown("### 🧠 Hallucination Report")
+        for item in st.session_state.hallucination_report:
+            sev = item.get("severity", "").lower()
+            badge_cls = "badge-high" if "high" in sev else ("badge-medium" if "medium" in sev else "badge-low")
+            with st.expander(f"[{item['type']}] → {item['location']}", expanded=False):
+                st.markdown(f'<span class="badge badge-type">{item["type"]}</span><span class="badge {badge_cls}">{item["severity"]}</span>', unsafe_allow_html=True)
+                st.markdown(f"**Location:** `{item['location']}`")
+                st.markdown(f"**Detail:** {item.get('detail', '')}")
+        st.markdown("---")
+        st.markdown("### 📊 Summary")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Injections", len(st.session_state.injection_report))
+        c2.metric("Hallucinations", len(st.session_state.hallucination_report))
+        c3.metric("Sections", len(st.session_state.sections_order))
+    # Stop further execution (don't run generation again)
+    st.stop()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# GENERATION LOGIC (only runs when button is clicked and not already running)
 # ══════════════════════════════════════════════════════════════════════════════
 if generate_btn:
+    # Prevent duplicate runs while generation is in progress
+    if st.session_state.generation_running:
+        st.warning("⏳ Generation is already in progress. Please wait...")
+        st.stop()
+    if st.session_state.generation_complete:
+        # Clear previous generation results if user wants a new one
+        st.session_state.generation_complete = False
+        # We'll continue to generate new paper
+
+    st.session_state.generation_running = True
 
     # --- Validate inputs ---
     api_keys = [k for k in [api_key_1, api_key_2, api_key_3, api_key_4] if k.strip()]
     if not api_keys:
         st.error("🔑 Please provide at least one Groq API key in the sidebar.")
+        st.session_state.generation_running = False
         st.stop()
 
     if not topic.strip():
         st.error("📝 Please enter a research topic.")
+        st.session_state.generation_running = False
         st.stop()
 
     # Validate injection/hallucination selections (if not auto mode)
@@ -455,7 +426,6 @@ if generate_btn:
         )
 
         # ── Build ZIP ─────────────────────────────────────────────────────────
-        # Sections dict for zip: key → content
         sections_for_zip = {k: generated_sections[k] for k in sections_order}
 
         zip_bytes = build_zip(
@@ -472,17 +442,24 @@ if generate_btn:
             unsafe_allow_html=True,
         )
 
-        # ══════════════════════════════════════════════════════════════════════
-        # DISPLAY RESULTS
-        # ══════════════════════════════════════════════════════════════════════
+        # ── Store everything in session state for future reruns ────────────────
+        st.session_state.generation_complete = True
+        st.session_state.zip_bytes = zip_bytes
+        st.session_state.main_tex = main_tex
+        st.session_state.references_bib = references_bib
+        st.session_state.generated_sections = generated_sections
+        st.session_state.readme_txt = readme_txt
+        st.session_state.injection_report = injection_report
+        st.session_state.hallucination_report = hallucination_report
+        st.session_state.sections_order = sections_order
+        st.session_state.conference = conference
+
+        # Display results in the same run
         with preview_container:
             st.markdown("---")
             st.markdown('<div class="section-label">📄 Generated Content Preview</div>', unsafe_allow_html=True)
-
-            # Download button
             ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             filename = f"synthetic_paper_{conference.lower()}_{ts}.zip"
-
             st.download_button(
                 label="⬇️ Download ZIP Archive",
                 data=zip_bytes,
@@ -490,33 +467,22 @@ if generate_btn:
                 mime="application/zip",
                 use_container_width=True,
             )
-
-            # Preview tabs
             tab_names = ["main.tex", "Abstract", "Introduction", "Method", "References (bib)", "README"]
             tabs = st.tabs(tab_names)
-
             with tabs[0]:
                 st.code(main_tex, language="latex")
-
             with tabs[1]:
                 st.code(generated_sections.get("abstract", ""), language="latex")
-
             with tabs[2]:
                 st.code(generated_sections.get("intro", ""), language="latex")
-
             with tabs[3]:
                 st.code(generated_sections.get("method", ""), language="latex")
-
             with tabs[4]:
                 st.code(references_bib, language="bibtex")
-
             with tabs[5]:
                 st.code(readme_txt, language="text")
 
-        # ── Reports column ────────────────────────────────────────────────────
         with report_container.container():
-
-            # Injection Report
             st.markdown("### 💉 Injection Report")
             if injection_report:
                 for item in injection_report:
@@ -534,10 +500,7 @@ if generate_btn:
                         st.code(item.get("snippet", "")[:300], language="latex")
             else:
                 st.info("No injections recorded.")
-
             st.markdown("---")
-
-            # Hallucination Report
             st.markdown("### 🧠 Hallucination Report")
             if hallucination_report:
                 for item in hallucination_report:
@@ -553,19 +516,13 @@ if generate_btn:
                         st.markdown(f"**Detail:** {item.get('detail', '')}")
             else:
                 st.info("No hallucinations recorded.")
-
-            # Summary stats
             st.markdown("---")
             st.markdown("### 📊 Summary")
             c1, c2, c3 = st.columns(3)
             c1.metric("Injections", len(injection_report))
             c2.metric("Hallucinations", len(hallucination_report))
             c3.metric("Sections", len(sections_order))
-
-            high_sev = sum(
-                1 for r in injection_report + hallucination_report
-                if "high" in r.get("severity", "").lower()
-            )
+            high_sev = sum(1 for r in injection_report + hallucination_report if "high" in r.get("severity", "").lower())
             st.metric("High-Severity Events", high_sev, delta=None)
 
     except Exception as e:
@@ -574,9 +531,11 @@ if generate_btn:
         with st.expander("Full traceback"):
             import traceback
             st.code(traceback.format_exc(), language="python")
+    finally:
+        st.session_state.generation_running = False
 
 else:
-    # ── Idle state ────────────────────────────────────────────────────────────
+    # ── Idle state (unchanged, omitted for brevity) ───────────────────────────
     with col_main:
         st.markdown("""
         <div class="card">
