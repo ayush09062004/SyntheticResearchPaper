@@ -26,10 +26,25 @@ from utils.groq_client import GroqClientManager
 from utils.zip_export import build_zip, build_readme
 
 
-# ── Helper function to extract BibTeX keys ────────────────────────────────────
+# ── Helper functions for citation handling ────────────────────────────────────
 def extract_bibtex_keys(bibtex: str) -> list[str]:
     """Extract citation keys from a BibTeX string."""
     return re.findall(r'@\w+\{([^,]+),', bibtex)
+
+
+def normalize_citations(content: str, valid_keys: list[str]) -> str:
+    """Replace any \cite{...} with a key that exists in valid_keys."""
+    if not valid_keys:
+        return content
+    pattern = r'\\(?:cite|citep|citet)\{([^}]+)\}'
+    def replacer(match):
+        full = match.group(0)
+        key = match.group(1).strip()
+        if key not in valid_keys:
+            cmd = full.split('{')[0]  # keep the original command
+            return f"{cmd}{{{valid_keys[0]}}}"
+        return full
+    return re.sub(pattern, replacer, content)
 
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -40,7 +55,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS (unchanged) ────────────────────────────────────────────────────
+# ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
@@ -373,7 +388,6 @@ if generate_btn:
             # Inject the real citation keys into the user message
             if citation_keys:
                 keys_str = ", ".join(citation_keys)
-                # The user message is the last element in the messages list
                 user_msg = messages[-1]["content"]
                 user_msg += f"\n\nIMPORTANT: You MUST use only the following BibTeX keys when citing: {keys_str}. Use these exact keys (e.g., \\cite{{{citation_keys[0]}}})."
                 messages[-1]["content"] = user_msg
@@ -384,6 +398,10 @@ if generate_btn:
                 max_tokens=max_tokens,
                 temperature=0.75,
             )
+
+            # Fix citations immediately after generation
+            if citation_keys:
+                raw = normalize_citations(raw, citation_keys)
 
             generated_sections[section_key] = wrap_section(section_key, raw)
             time.sleep(0.3)
@@ -402,6 +420,10 @@ if generate_btn:
             unsafe_allow_html=True,
         )
         generated_sections = hallucination_engine.inject_sections(generated_sections)
+
+        # ── Final pass: ensure all citations (including those added by injections/hallucinations) are valid
+        for sec_key in sections_order:
+            generated_sections[sec_key] = normalize_citations(generated_sections[sec_key], citation_keys)
 
         # ── Assemble main.tex ─────────────────────────────────────────────────
         status_container.markdown(
