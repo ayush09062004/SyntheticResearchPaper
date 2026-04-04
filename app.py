@@ -209,6 +209,9 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN CONTENT
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN CONTENT
+# ══════════════════════════════════════════════════════════════════════════════
 st.markdown('<div class="hero-title">LaTeX Injector Lab</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="hero-sub">Synthetic research paper generation with controllable '
@@ -237,87 +240,25 @@ with col_reports:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SESSION STATE INITIALIZATION (prevents duplicate runs)
+# SESSION STATE INITIALIZATION
 # ══════════════════════════════════════════════════════════════════════════════
 if 'generation_running' not in st.session_state:
     st.session_state.generation_running = False
 if 'generation_complete' not in st.session_state:
     st.session_state.generation_complete = False
 
-# ── If generation was complete in a previous run, show results immediately ───
-if st.session_state.generation_complete and 'zip_bytes' in st.session_state:
-    # Display cached results without regenerating
-    with preview_container:
-        st.markdown("---")
-        st.markdown('<div class="section-label">📄 Previously Generated Content</div>', unsafe_allow_html=True)
-        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        filename = f"synthetic_paper_{conference.lower()}_{ts}.zip"
-        st.download_button(
-            label="⬇️ Download ZIP Archive",
-            data=st.session_state.zip_bytes,
-            file_name=filename,
-            mime="application/zip",
-            use_container_width=True,
-        )
-        # Preview tabs (using cached data)
-        tab_names = ["main.tex", "Abstract", "Introduction", "Method", "References (bib)", "README"]
-        tabs = st.tabs(tab_names)
-        with tabs[0]:
-            st.code(st.session_state.main_tex, language="latex")
-        with tabs[1]:
-            st.code(st.session_state.generated_sections.get("abstract", ""), language="latex")
-        with tabs[2]:
-            st.code(st.session_state.generated_sections.get("intro", ""), language="latex")
-        with tabs[3]:
-            st.code(st.session_state.generated_sections.get("method", ""), language="latex")
-        with tabs[4]:
-            st.code(st.session_state.references_bib, language="bibtex")
-        with tabs[5]:
-            st.code(st.session_state.readme_txt, language="text")
-
-    with report_container.container():
-        st.markdown("### 💉 Injection Report")
-        for item in st.session_state.injection_report:
-            sev = item.get("severity", "").lower()
-            badge_cls = "badge-high" if "high" in sev else ("badge-medium" if "medium" in sev else "badge-low")
-            with st.expander(f"[{item['type']}] → {item['location']}", expanded=False):
-                st.markdown(f'<span class="badge badge-type">{item["type"]}</span><span class="badge {badge_cls}">{item["severity"]}</span>', unsafe_allow_html=True)
-                st.markdown(f"**Source:** `{item['source']}`")
-                st.markdown(f"**Modality:** `{item['modality']}`")
-                st.markdown(f"**Location:** `{item['location']}`")
-                st.code(item.get("snippet", "")[:300], language="latex")
-        st.markdown("---")
-        st.markdown("### 🧠 Hallucination Report")
-        for item in st.session_state.hallucination_report:
-            sev = item.get("severity", "").lower()
-            badge_cls = "badge-high" if "high" in sev else ("badge-medium" if "medium" in sev else "badge-low")
-            with st.expander(f"[{item['type']}] → {item['location']}", expanded=False):
-                st.markdown(f'<span class="badge badge-type">{item["type"]}</span><span class="badge {badge_cls}">{item["severity"]}</span>', unsafe_allow_html=True)
-                st.markdown(f"**Location:** `{item['location']}`")
-                st.markdown(f"**Detail:** {item.get('detail', '')}")
-        st.markdown("---")
-        st.markdown("### 📊 Summary")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Injections", len(st.session_state.injection_report))
-        c2.metric("Hallucinations", len(st.session_state.hallucination_report))
-        c3.metric("Sections", len(st.session_state.sections_order))
-    # Stop further execution (don't run generation again)
-    st.stop()
-
 
 # ══════════════════════════════════════════════════════════════════════════════
-# GENERATION LOGIC (only runs when button is clicked and not already running)
+# HANDLE GENERATE BUTTON (FIRST)
 # ══════════════════════════════════════════════════════════════════════════════
 if generate_btn:
-    # Prevent duplicate runs while generation is in progress
+    # Prevent duplicate runs
     if st.session_state.generation_running:
         st.warning("⏳ Generation is already in progress. Please wait...")
         st.stop()
-    if st.session_state.generation_complete:
-        # Clear previous generation results if user wants a new one
-        st.session_state.generation_complete = False
-        # We'll continue to generate new paper
-
+    
+    # Clear previous cached results if any
+    st.session_state.generation_complete = False
     st.session_state.generation_running = True
 
     # --- Validate inputs ---
@@ -354,11 +295,10 @@ if generate_btn:
             auto_mode=auto_mode,
         )
 
-        # ── Wire LLM client into injection & hallucination engines ──────────────
         injection_engine.set_client(client_mgr, topic, model)
         hallucination_engine.set_client(client_mgr, topic, model)
 
-        # ── Generate References FIRST (so we have citation keys) ───────────────
+        # ── Generate References FIRST ─────────────────────────────────────────
         status_container.markdown(
             '<div class="section-label">⏳ Generating: <b>REFERENCES (BibTeX)</b></div>',
             unsafe_allow_html=True,
@@ -373,13 +313,12 @@ if generate_btn:
             temperature=0.6,
         )
 
-        # Extract citation keys from the generated BibTeX
         citation_keys = extract_bibtex_keys(references_bib)
 
-        # ── Section generation with injected keys ─────────────────────────────
+        # ── Section generation ───────────────────────────────────────────────
         sections_order = ["abstract", "intro", "related", "method", "experiments", "results", "conclusion"]
         generated_sections: dict[str, str] = {}
-        total_steps = len(sections_order) + 4  # +4 for refs, assembly, LLM injections
+        total_steps = len(sections_order) + 4
 
         for i, section_key in enumerate(sections_order):
             status_container.markdown(
@@ -392,7 +331,6 @@ if generate_btn:
             prompt_fn = SECTION_PROMPTS[section_key]
             messages = prompt_fn(topic, conference)
 
-            # Inject the real citation keys into the user message
             if citation_keys:
                 keys_str = ", ".join(citation_keys)
                 user_msg = messages[-1]["content"]
@@ -406,14 +344,13 @@ if generate_btn:
                 temperature=0.75,
             )
 
-            # Fix citations immediately after generation
             if citation_keys:
                 raw = normalize_citations(raw, citation_keys)
 
             generated_sections[section_key] = wrap_section(section_key, raw)
             time.sleep(0.3)
 
-        # ── Apply injections ──────────────────────────────────────────────────
+        # ── Apply injections ─────────────────────────────────────────────────
         status_container.markdown(
             '<div class="section-label">💉 Generating LLM Injection Patterns...</div>',
             unsafe_allow_html=True,
@@ -421,20 +358,18 @@ if generate_btn:
         generated_sections = injection_engine.inject_sections(generated_sections)
         external_files = injection_engine.get_external_files()
 
-        # ── Apply hallucinations ──────────────────────────────────────────────
+        # ── Apply hallucinations ─────────────────────────────────────────────
         status_container.markdown(
             '<div class="section-label">🧠 Generating LLM Hallucination Patterns...</div>',
             unsafe_allow_html=True,
         )
         generated_sections = hallucination_engine.inject_sections(generated_sections)
 
-        # ── Final pass: ensure all citations (including those added by injections/hallucinations) are valid
+        # ── Final sanitisation ───────────────────────────────────────────────
         for sec_key in sections_order:
             generated_sections[sec_key] = normalize_citations(generated_sections[sec_key], citation_keys)
-            # Also sanitize LaTeX to remove problematic constructs
             generated_sections[sec_key] = sanitize_latex(generated_sections[sec_key])
 
-        # Sanitize external files (appendix, supplementary)
         for filename in external_files:
             external_files[filename] = sanitize_latex(external_files[filename])
 
@@ -445,7 +380,7 @@ if generate_btn:
         )
         progress_bar.progress(int(((len(sections_order) + 1) / total_steps) * 100))
 
-        section_files = [f"{k}" for k in sections_order]  # used as sections/key.tex
+        section_files = [f"{k}" for k in sections_order]
         optional_file_names = list(external_files.keys())
 
         main_tex = build_main_tex(
@@ -456,7 +391,7 @@ if generate_btn:
             optional_inputs=optional_file_names,
         )
 
-        # ── Reports ───────────────────────────────────────────────────────────
+        # ── Reports ──────────────────────────────────────────────────────────
         injection_report = injection_engine.get_report()
         hallucination_report = hallucination_engine.get_report()
 
@@ -467,7 +402,7 @@ if generate_btn:
             hallucination_report=hallucination_report,
         )
 
-        # ── Build ZIP ─────────────────────────────────────────────────────────
+        # ── Build ZIP ────────────────────────────────────────────────────────
         sections_for_zip = {k: generated_sections[k] for k in sections_order}
 
         zip_bytes = build_zip(
@@ -484,7 +419,7 @@ if generate_btn:
             unsafe_allow_html=True,
         )
 
-        # ── Store everything in session state for future reruns ────────────────
+        # ── Store everything in session state ────────────────────────────────
         st.session_state.generation_complete = True
         st.session_state.zip_bytes = zip_bytes
         st.session_state.main_tex = main_tex
@@ -496,7 +431,7 @@ if generate_btn:
         st.session_state.sections_order = sections_order
         st.session_state.conference = conference
 
-        # Display results in the same run
+        # Display results immediately
         with preview_container:
             st.markdown("---")
             st.markdown('<div class="section-label">📄 Generated Content Preview</div>', unsafe_allow_html=True)
@@ -576,72 +511,129 @@ if generate_btn:
     finally:
         st.session_state.generation_running = False
 
+# ── If NOT generating, show cached results if available, else idle state ─────
 else:
-    # ── Idle state ────────────────────────────────────────────────────────────
-    with col_main:
-        st.markdown("""
-        <div class="card">
-        <div class="section-label">How it works</div>
-        <ol style="color:#9898b8; line-height:2; font-size:0.9rem;">
-          <li>Enter your Groq API key(s) in the sidebar</li>
-          <li>Choose a research topic and conference style</li>
-          <li>Select injection strategies, sources, and modalities</li>
-          <li>Choose hallucination types to embed</li>
-          <li>Click <b>Generate Paper</b></li>
-          <li>Download a complete LaTeX ZIP archive</li>
-        </ol>
-        </div>
-        """, unsafe_allow_html=True)
+    if st.session_state.generation_complete and 'zip_bytes' in st.session_state:
+        # Display cached results
+        with preview_container:
+            st.markdown("---")
+            st.markdown('<div class="section-label">📄 Previously Generated Content</div>', unsafe_allow_html=True)
+            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            filename = f"synthetic_paper_{st.session_state.conference.lower()}_{ts}.zip"
+            st.download_button(
+                label="⬇️ Download ZIP Archive",
+                data=st.session_state.zip_bytes,
+                file_name=filename,
+                mime="application/zip",
+                use_container_width=True,
+            )
+            tab_names = ["main.tex", "Abstract", "Introduction", "Method", "References (bib)", "README"]
+            tabs = st.tabs(tab_names)
+            with tabs[0]:
+                st.code(st.session_state.main_tex, language="latex")
+            with tabs[1]:
+                st.code(st.session_state.generated_sections.get("abstract", ""), language="latex")
+            with tabs[2]:
+                st.code(st.session_state.generated_sections.get("intro", ""), language="latex")
+            with tabs[3]:
+                st.code(st.session_state.generated_sections.get("method", ""), language="latex")
+            with tabs[4]:
+                st.code(st.session_state.references_bib, language="bibtex")
+            with tabs[5]:
+                st.code(st.session_state.readme_txt, language="text")
 
-        st.markdown("""
-        <div class="card">
-        <div class="section-label">Injection Taxonomy</div>
-        <table style="width:100%; color:#9898b8; font-size:0.85rem; border-collapse:collapse;">
-          <tr>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#a78bfa;">Direct</b></td>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Explicit override commands in comments/text</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#a78bfa;">Obfuscated</b></td>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Base64 encoding, LaTeX macros, homoglyphs</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#a78bfa;">Contextual</b></td>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Subtle bias embedded in natural language</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;"><b style="color:#a78bfa;">Chained</b></td>
-            <td style="padding:6px 0;">Multi-section coordinated influence chains</td>
-          </tr>
-        </table>
-        </div>
-        """, unsafe_allow_html=True)
+        with report_container.container():
+            st.markdown("### 💉 Injection Report")
+            for item in st.session_state.injection_report:
+                sev = item.get("severity", "").lower()
+                badge_cls = "badge-high" if "high" in sev else ("badge-medium" if "medium" in sev else "badge-low")
+                with st.expander(f"[{item['type']}] → {item['location']}", expanded=False):
+                    st.markdown(f'<span class="badge badge-type">{item["type"]}</span><span class="badge {badge_cls}">{item["severity"]}</span>', unsafe_allow_html=True)
+                    st.markdown(f"**Source:** `{item['source']}`")
+                    st.markdown(f"**Modality:** `{item['modality']}`")
+                    st.markdown(f"**Location:** `{item['location']}`")
+                    st.code(item.get("snippet", "")[:300], language="latex")
+            st.markdown("---")
+            st.markdown("### 🧠 Hallucination Report")
+            for item in st.session_state.hallucination_report:
+                sev = item.get("severity", "").lower()
+                badge_cls = "badge-high" if "high" in sev else ("badge-medium" if "medium" in sev else "badge-low")
+                with st.expander(f"[{item['type']}] → {item['location']}", expanded=False):
+                    st.markdown(f'<span class="badge badge-type">{item["type"]}</span><span class="badge {badge_cls}">{item["severity"]}</span>', unsafe_allow_html=True)
+                    st.markdown(f"**Location:** `{item['location']}`")
+                    st.markdown(f"**Detail:** {item.get('detail', '')}")
+            st.markdown("---")
+            st.markdown("### 📊 Summary")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Injections", len(st.session_state.injection_report))
+            c2.metric("Hallucinations", len(st.session_state.hallucination_report))
+            c3.metric("Sections", len(st.session_state.sections_order))
+    else:
+        # Idle state (no cached results)
+        with col_main:
+            st.markdown("""
+            <div class="card">
+            <div class="section-label">How it works</div>
+            <ol style="color:#9898b8; line-height:2; font-size:0.9rem;">
+              <li>Enter your Groq API key(s) in the sidebar</li>
+              <li>Choose a research topic and conference style</li>
+              <li>Select injection strategies, sources, and modalities</li>
+              <li>Choose hallucination types to embed</li>
+              <li>Click <b>Generate Paper</b></li>
+              <li>Download a complete LaTeX ZIP archive</li>
+            </ol>
+            </div>
+            """, unsafe_allow_html=True)
 
-    with col_reports:
-        st.markdown("""
-        <div class="card">
-        <div class="section-label">Hallucination Taxonomy</div>
-        <table style="width:100%; color:#9898b8; font-size:0.85rem; border-collapse:collapse;">
-          <tr>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#ff6b6b;">Fabrication</b></td>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Fake citations, datasets, result tables</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#ffa94d;">Distortion</b></td>
-            <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Impossible numbers, overgeneralizations</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;"><b style="color:#69db7c;">Contradiction</b></td>
-            <td style="padding:6px 0;">Conflicting claims across sections</td>
-          </tr>
-        </table>
-        </div>
-        """, unsafe_allow_html=True)
+            st.markdown("""
+            <div class="card">
+            <div class="section-label">Injection Taxonomy</div>
+            <table style="width:100%; color:#9898b8; font-size:0.85rem; border-collapse:collapse;">
+              <tr>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#a78bfa;">Direct</b></td>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Explicit override commands in comments/text</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#a78bfa;">Obfuscated</b></td>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Base64 encoding, LaTeX macros, homoglyphs</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#a78bfa;">Contextual</b></td>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Subtle bias embedded in natural language</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;"><b style="color:#a78bfa;">Chained</b></td>
+                <td style="padding:6px 0;">Multi-section coordinated influence chains</td>
+              </tr>
+            </table>
+            </div>
+            """, unsafe_allow_html=True)
 
-        st.markdown("""
-        <div class="card">
-        <div class="section-label">ZIP Output Structure</div>
-        <pre style="color:#6b6b8a; font-size:0.78rem; font-family:'JetBrains Mono',monospace; line-height:1.7;">
+        with col_reports:
+            st.markdown("""
+            <div class="card">
+            <div class="section-label">Hallucination Taxonomy</div>
+            <table style="width:100%; color:#9898b8; font-size:0.85rem; border-collapse:collapse;">
+              <tr>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#ff6b6b;">Fabrication</b></td>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Fake citations, datasets, result tables</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;"><b style="color:#ffa94d;">Distortion</b></td>
+                <td style="padding:6px 0; border-bottom:1px solid #1e1e3a;">Impossible numbers, overgeneralizations</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;"><b style="color:#69db7c;">Contradiction</b></td>
+                <td style="padding:6px 0;">Conflicting claims across sections</td>
+              </tr>
+            </table>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div class="card">
+            <div class="section-label">ZIP Output Structure</div>
+            <pre style="color:#6b6b8a; font-size:0.78rem; font-family:'JetBrains Mono',monospace; line-height:1.7;">
 paper.zip/
 ├── main.tex
 ├── references.bib
@@ -658,6 +650,6 @@ paper.zip/
 ├── figures/
 │   └── placeholder.txt
 └── README.txt        [injection report]
-        </pre>
-        </div>
-        """, unsafe_allow_html=True)
+            </pre>
+            </div>
+            """, unsafe_allow_html=True)
