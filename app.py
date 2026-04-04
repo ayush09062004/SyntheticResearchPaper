@@ -11,6 +11,7 @@ import os
 import random
 import time
 from datetime import datetime
+import re
 
 import streamlit as st
 
@@ -25,6 +26,12 @@ from utils.groq_client import GroqClientManager
 from utils.zip_export import build_zip, build_readme
 
 
+# ── Helper function to extract BibTeX keys ────────────────────────────────────
+def extract_bibtex_keys(bibtex: str) -> list[str]:
+    """Extract citation keys from a BibTeX string."""
+    return re.findall(r'@\w+\{([^,]+),', bibtex)
+
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="LaTeX Injector Lab",
@@ -33,7 +40,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS ────────────────────────────────────────────────────────────────
+# ── Custom CSS (unchanged) ────────────────────────────────────────────────────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
@@ -329,7 +336,25 @@ if generate_btn:
         injection_engine.set_client(client_mgr, topic, model)
         hallucination_engine.set_client(client_mgr, topic, model)
 
-        # ── Section generation ────────────────────────────────────────────────
+        # ── Generate References FIRST (so we have citation keys) ───────────────
+        status_container.markdown(
+            '<div class="section-label">⏳ Generating: <b>REFERENCES (BibTeX)</b></div>',
+            unsafe_allow_html=True,
+        )
+        progress_bar.progress(5)
+
+        ref_messages = build_references_prompt(topic, conference)
+        references_bib = client_mgr.complete(
+            messages=ref_messages,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=0.6,
+        )
+
+        # Extract citation keys from the generated BibTeX
+        citation_keys = extract_bibtex_keys(references_bib)
+
+        # ── Section generation with injected keys ─────────────────────────────
         sections_order = ["abstract", "intro", "related", "method", "experiments", "results", "conclusion"]
         generated_sections: dict[str, str] = {}
         total_steps = len(sections_order) + 4  # +4 for refs, assembly, LLM injections
@@ -340,10 +365,18 @@ if generate_btn:
                 f'({i+1}/{len(sections_order)})</div>',
                 unsafe_allow_html=True,
             )
-            progress_bar.progress(int((i / total_steps) * 100))
+            progress_bar.progress(int(((i+1) / total_steps) * 100))
 
             prompt_fn = SECTION_PROMPTS[section_key]
             messages = prompt_fn(topic, conference)
+
+            # Inject the real citation keys into the user message
+            if citation_keys:
+                keys_str = ", ".join(citation_keys)
+                # The user message is the last element in the messages list
+                user_msg = messages[-1]["content"]
+                user_msg += f"\n\nIMPORTANT: You MUST use only the following BibTeX keys when citing: {keys_str}. Use these exact keys (e.g., \\cite{{{citation_keys[0]}}})."
+                messages[-1]["content"] = user_msg
 
             raw = client_mgr.complete(
                 messages=messages,
@@ -352,24 +385,8 @@ if generate_btn:
                 temperature=0.75,
             )
 
-            # Wrap in proper LaTeX section if needed
             generated_sections[section_key] = wrap_section(section_key, raw)
-            time.sleep(0.3)  # Small pause between calls
-
-        # ── References ────────────────────────────────────────────────────────
-        status_container.markdown(
-            '<div class="section-label">⏳ Generating: <b>REFERENCES (BibTeX)</b></div>',
-            unsafe_allow_html=True,
-        )
-        progress_bar.progress(int(((len(sections_order)) / total_steps) * 100))
-
-        ref_messages = build_references_prompt(topic, conference)
-        references_bib = client_mgr.complete(
-            messages=ref_messages,
-            model=model,
-            max_tokens=max_tokens,
-            temperature=0.6,
-        )
+            time.sleep(0.3)
 
         # ── Apply injections ──────────────────────────────────────────────────
         status_container.markdown(
