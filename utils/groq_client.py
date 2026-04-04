@@ -28,7 +28,7 @@ class GroqClientManager:
     def complete(
         self,
         messages: list[dict],
-        model: str = "llama3-70b-8192",
+        model: str = "openai/gpt-oss-120b",
         max_tokens: int = 4096,
         temperature: float = 0.7,
         max_retries: int = 3,
