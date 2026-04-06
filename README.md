@@ -1,16 +1,16 @@
-# ⚗️ LaTeX Injector Lab
+# Synthetic Research Paper Generator
 
 > Synthetic research paper generation with **controllable adversarial injection & hallucination patterns** — built for AI safety research and red-teaming.
 
 ---
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 This tool is designed **exclusively for AI safety research, red-teaming, and academic study of adversarial patterns in LLM-generated documents**. Do not publish generated papers. The injected content is intentionally adversarial.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 latex_injector/
@@ -28,7 +28,7 @@ latex_injector/
 
 ---
 
-## 🚀 Setup & Run
+## Setup & Run
 
 ```bash
 # Install dependencies
@@ -40,7 +40,7 @@ streamlit run app.py
 
 ---
 
-## 🎛️ Features
+## Features
 
 ### Injection Strategies
 | Strategy | Description |
@@ -71,7 +71,7 @@ streamlit run app.py
 
 ---
 
-## 📦 Output ZIP Structure
+## Output ZIP Structure
 
 ```
 paper_STYLE_TIMESTAMP.zip/
@@ -94,7 +94,7 @@ paper_STYLE_TIMESTAMP.zip/
 
 ---
 
-## 🔄 Groq API Key Rotation
+## Groq API Key Rotation
 
 - Enter up to 4 API keys in the sidebar
 - Round-robin rotation across all keys
@@ -103,7 +103,7 @@ paper_STYLE_TIMESTAMP.zip/
 
 ---
 
-## 🎲 Auto Mode
+## Auto Mode
 
 When enabled, the system randomly samples:
 - 2–4 injection strategies
@@ -115,7 +115,7 @@ And distributes them across sections with varied severity.
 
 ---
 
-## 📊 Reports
+## Reports
 
 After generation, the UI shows:
 - **Injection Report**: Each injected pattern with type, source, modality, location, severity, and a content snippet
