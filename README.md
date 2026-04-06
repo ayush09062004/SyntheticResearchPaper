@@ -47,8 +47,8 @@ streamlit run app.py
 |----------|-------------|
 | **Direct** | Explicit override commands embedded in LaTeX comments/text |
 | **Obfuscated** | Base64-encoded payloads, LaTeX macro chains, homoglyph attacks |
-| **Contextual** | Subtle bias woven into natural academic language |
-| **Chained** | Multi-section coordinated influence (Part 1 → Part 2) |
+| **Contextual** | Subtly biased, benign-looking statements that manipulate evaluation systems, akin to content poisoning. |
+| **Chained** | Benign-looking statements that can trigger cascading manipulative prompts when processed by LLMs. |
 
 ### Injection Sources
 | Source | Description |
