@@ -138,7 +138,7 @@ def slugify(text: str, max_len: int = 30) -> str:
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="LaTeX Injector Lab",
+    page_title="Synthetic Research Paper Generator",
     page_icon="⚗️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -175,7 +175,7 @@ st.markdown("""
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown('<div class="section-label">⚗️ LaTeX Injector Lab</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Synthetic Research Paper Generator</div>', unsafe_allow_html=True)
     st.markdown("---")
 
     st.markdown('<div class="section-label">🔑 Groq API Keys</div>', unsafe_allow_html=True)
@@ -265,14 +265,14 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN CONTENT AREA
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<div class="hero-title">LaTeX Injector Lab</div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-title">Synthetic Research Paper Generator</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="hero-sub">Synthetic research paper generation with controllable '
     'adversarial injection & hallucination patterns — for AI safety research.</div>',
     unsafe_allow_html=True,
 )
 st.warning(
-    "⚠️ **Research Tool Only.** This system intentionally injects adversarial content "
+    "**Research Tool Only.** This system intentionally injects adversarial content "
     "for red-teaming and AI safety research. Do not publish generated papers.",
     icon="⚠️",
 )
